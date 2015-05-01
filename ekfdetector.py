@@ -67,7 +67,7 @@ class EKFDetector(Detector):
 			P_priori_k = P_posteriori_k + Q
 			x_prioris.append(x_priori_k)
 			
-		return x_prioris
+		return (x_prioris, R)
 		
 	# Detects anomalies
 	def detect(self):

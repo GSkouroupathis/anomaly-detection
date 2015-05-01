@@ -118,6 +118,14 @@ def selectNode(node_id):
 	''', (node_id,))
 	return dbCursor.fetchall()
 
+def selectAllNodes():
+	global dbCursor
+	dbCursor.execute('''
+	SELECT node_id FROM nodes_table
+	''')
+	return dbCursor.fetchall()
+
+
 ###############	###############	###############	
 #readings_table
 ###############	###############	###############	

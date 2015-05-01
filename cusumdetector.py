@@ -30,7 +30,7 @@ class CUSUMDetector(Detector):
 		s_ks_sum = 0
 		self.alert = False
 		y = []
-		x_prioris = self.EKFd.comp_x_prioris()
+		(x_prioris, R) = self.EKFd.comp_x_prioris()
 		cusumVals = [0 for i in self.dataset]
 		s_ks = [0 for i in self.dataset] #testing
 		mu1 = 0
@@ -64,8 +64,8 @@ class CUSUMDetector(Detector):
 			if s_N > h:
 				self.alert = True
 			cusumVals[k] = s_N
-			
-		return (cusumVals, s_ks, self.alert, self.h, self.w)
+
+		return (cusumVals, s_ks, x_prioris, R, self.alert, self.h, self.w)
 			
 	def cusum(self):
 
