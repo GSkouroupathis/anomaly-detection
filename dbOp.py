@@ -46,6 +46,11 @@ def initTables():
 		print str(e)
 		print "r"
 	try:
+		dbCursor.execute('DROP TABLE IF EXISTS covariance_table')
+	except Exception,e:
+		print str(e)
+		print "cov"
+	try:
 		dbCursor.execute('DROP TABLE IF EXISTS nodes_table')
 	except Exception,e:
 		print str(e)
@@ -56,6 +61,18 @@ def initTables():
 	CREATE TABLE nodes_table (
 	node_id int,
 	PRIMARY KEY (node_id)
+	)
+	''')
+
+	######################### covariance_table #########################
+	dbCursor.execute('''
+	CREATE TABLE covariance_table (
+	node1_id int,
+	node2_id int,
+	covariance real,
+	PRIMARY KEY (node1_id, node2_id),
+	FOREIGN KEY(node1_id) REFERENCES nodes_table(node_id),
+	FOREIGN KEY(node2_id) REFERENCES nodes_table(node_id)
 	)
 	''')
 
@@ -110,12 +127,11 @@ def insertNode(node_id):
 	''', (node_id,))
 	dbConnection.commit()
 
-def selectNode(node_id):
+def selectAllNodes():
 	global dbCursor
 	dbCursor.execute('''
 	SELECT * FROM nodes_table
-	WHERE node_id = ?
-	''', (node_id,))
+	''')
 	return dbCursor.fetchall()
 
 def selectAllNodes():
@@ -125,6 +141,26 @@ def selectAllNodes():
 	''')
 	return dbCursor.fetchall()
 
+###############	###############	###############	
+#covariance_table
+###############	###############	###############	
+def insertCov(node1_id, node2_id, cov):
+	global dbCursor
+	dbCursor.execute('''
+	INSERT INTO covariance_table (node1_id, node2_id, covariance)
+	VALUES (?,?,?)
+	''', (node1_id, node2_id, cov))
+	dbConnection.commit()
+
+def selectOrderedCov(node_id):
+	global dbCursor
+	dbCursor.execute('''
+	SELECT * FROM covariance_table
+	WHERE node1_id = ?
+		OR node2_id = ?
+	ORDER BY covariance DESC
+	''', (node_id, node_id))
+	return dbCursor.fetchall()
 
 ###############	###############	###############	
 #readings_table
