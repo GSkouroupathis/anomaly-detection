@@ -49,7 +49,7 @@ def init():
 	dbOp.closeConnectionToDatabase()
 
 #init()
-'''
+
 readings = []
 dbOp.connectToDatabase("data/db")
 r3 = map(lambda x: x[0], dbOp.selectReadingsFromNode(3))
@@ -60,9 +60,6 @@ r42 = map(lambda x: x[0], dbOp.selectReadingsFromNode(42))
 for i in map(lambda x: x[0], dbOp.selectAllNodes()):
 	if i != 3: readings.append( (i, map(lambda x: x[0], dbOp.selectReadingsFromNode(i))) )
 dbOp.closeConnectionToDatabase()
-'''
-
-
 
 ## CUSUM detection ##
 '''
@@ -87,17 +84,16 @@ for i in cor:
 
 
 # Terence mimicry
-'''
 terMimicry = TerMimicry()
 falseSignal = terMimicry.attack(r3, 28, 0, [r3])[0]
-'''
+
 
 
 # Plot stuff
 import matplotlib.pyplot as plt
-plt.axis('equal')
-plt.plot([1.2,1], 'b')
+plt.plot([0], 'w', [40], 'w', r3, 'b', falseSignal, 'r')
 plt.show()
+
 
 
 

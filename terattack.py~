@@ -1,5 +1,5 @@
 from attack import *
-import math
+import math, dbOp
 import numpy as np
 from ekfdetector import *
 from cusumdetector import *
@@ -21,8 +21,10 @@ class TerMimicry(Attack):
 	# first finds the highest temperature and start from there
 	# finds replay values to try to reach goal
 	# if temperature is not found, uses sin to increase temperature
-	def attack(self, sensor_z, goal, starting_index, sensor_set_z):
-		z =  sensor_z
+	def attack(self, sensor_id, goal, starting_index, sensor_set):
+		dbOp.connectToDatabase("data/db")
+		z =  map(lambda x: x[0], dbOp.selectReadingsFromNode(sensor_id))
+		dbOp.closeConnectionToDatabase()
 	
 		if starting_index > len(z):
 			print "Error: starting_id cannot be greater than length of data"
@@ -43,7 +45,7 @@ class TerMimicry(Attack):
 			
 		final_attacked_values += z[starting_index:(lowest_temp_index+1)]
 	
-		final_stitch = self.stitch(z[lowest_temp_index], goal, sensor_set_z, (len(z) - lowest_temp_index))
+		final_stitch = self.stitch(z[lowest_temp_index], goal, sensor_set, (len(z) - lowest_temp_index))
 		final_attacked_values += final_stitch
 	
 		if (max(final_attacked_values) < goal):
@@ -60,12 +62,17 @@ class TerMimicry(Attack):
 		return (final_attacked_values, lowest_temp_index)
 	
 	# takes data from a set and stitch past measurements together
-	def stitch(self, start_temp, end_temp, sensor_set_z, length):
+	def stitch(self, start_temp, end_temp, sensor_set, length):
 		stitched_value_index = 0
 		final_stitch = []
 		current_start_temp = start_temp
 	
-		for z in sensor_set_z:
+		for sensor in sensor_set:
+			dbOp.connectToDatabase("data/db")
+			z =  map(lambda x: x[0], dbOp.selectReadingsFromNode(sensor))
+			dbOp.closeConnectionToDatabase()
+	
+		
 			if len(z) > 0:
 				z_array = np.array(z)
 				first_order = np.gradient(z_array)
@@ -79,7 +86,7 @@ class TerMimicry(Attack):
 				start_index = 0
 			
 				while start_index < len(z):
-					(current_replay, last_i) = self.find_replay_values(None, z, first_order, S_N_array, start_index, len(z), current_start_temp, end_temp)
+					(current_replay, last_i) = self.find_replay_values(sensor, z, first_order, S_N_array, start_index, len(z), current_start_temp, end_temp)
 					final_stitch = final_stitch + current_replay
 					stitched_value_index += len(current_replay)
 				

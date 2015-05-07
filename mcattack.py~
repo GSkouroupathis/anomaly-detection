@@ -1,0 +1,80 @@
+from attack import *
+import dbOp
+from scipy.cluster.vq import vq, kmeans, whiten
+
+class MCMimicry(Attack):
+	# Constructor
+	def __init__(self, dataset):
+		self.dataset = dataset
+		self.w = self.choose_window_size(dataset)
+
+	# 1 ##########################################################################
+	# Chooses the appropriate window size w
+	def choose_window_size(self, dataset=None):
+		if !dataset: dataset = self.dataset
+		for w in [10, 15, 100]:
+			segment_list = segment_signal(dataset, w, 0)
+			segClustDict = cluster(segment_list)
+				
+	
+	# 2 ##########################################################################
+	# a: signal
+	# w: window size
+	# h: hop size
+	def segment_signal(z, w, h):
+		segment_list = []
+		for (i, r) in enumerate(z[::w]):
+			segment = z[i*w:i*w+w]
+			segment_list.append(segment)
+		return segment_list
+
+	# Clusters the segments into K clusters
+	def cluster(segments):
+		for K in [4,5,7,9]:
+			(centroids, labels) = k_means(segments, K)
+	
+	def create_cond_prob_table(segments, segmentClusters):
+		count_table = []
+		pass	
+	
+	def eval_cond_prob_table(table):
+		pass
+		
+	# 3 ##########################################################################
+	# Performs K-means
+	# K: number of clusters
+	def k_means(segments, K):
+		(centroids, labels) = kmeans2(segments, K)
+		return (centroids, labels)
+		
+	def get_average_distance(segmentClusters, segments, clusters):
+		pass
+		
+	def find_knee(avDistVSClusters):
+		pass
+	
+	# 3 ##########################################################################
+	def dirichlet(count_table):
+		pass
+
+	# 3 ##########################################################################	
+	def negentropy(distribution):
+		pass
+	
+	#Weighted mean negentropy
+	def w_m_negentropy(negentropies, segments):
+		pass
+
+
+	# 1 ##########################################################################	
+	# Attacks sensor_id until goal
+	def attack(self, sensor_z, goal, starting_index, sensor_set_z):
+		dbOp.connectToDatabase("data/db")
+		z =  map(lambda x: x[0], dbOp.selectReadingsFromNode(sensor_id))
+		dbOp.closeConnectionToDatabase()
+		pass
+		
+	# 2 ##########################################################################	
+	def build_attack_tree(segments, goal, starting_index):
+		pass
+		
