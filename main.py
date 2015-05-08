@@ -4,6 +4,7 @@ import dbOp, datetime, testing, attack
 from ekfdetector import *
 from cusumdetector import *
 from terattack import *
+from mcattack import *
 from plotter import *
 import numpy
 
@@ -17,7 +18,7 @@ def init():
 
 	# Filter readings
 	allFilteredReadings = []
-	readingsFilter = ReadingsFilter(threshold=25)
+	readingsFilter = ReadingsFilter(threshold=4)
 	inp = 0
 	for node in parsedReadings.keys():
 
@@ -38,29 +39,38 @@ def init():
 	dbOp.insertAllReadings(allFilteredReadings)
 
 	# Calculate and insert Covariances
-	nodes = dbOp.selectAllNodes()
+	'''
+	nodes = map(lambda x: x[0], dbOp.selectAllNodes())
 	for (i, node1) in enumerate(nodes):
+		i += 1
 		readings1 = dbOp.selectReadingsFromNode(node1)
 		for node2 in nodes[i+1:]:
 			readings2 = dbOp.selectReadingsFromNode(node2)
 			sL = min(len(readings1), len(readings2))
-			cov = numpy.cov(readings1[:sL], readings[:sL])[0][1]
+			cov = numpy.cov(readings1[:sL], readings2[:sL])[0][1]
 			dbOp.insertCov(node1, node2, cov)
+	'''
 	dbOp.closeConnectionToDatabase()
-
+	
 #init()
-'''
+
 readings = []
 dbOp.connectToDatabase("data/db")
 r3 = map(lambda x: x[0], dbOp.selectReadingsFromNode(3))
-r10 = map(lambda x: x[0], dbOp.selectReadingsFromNode(6))
-r26 = map(lambda x: x[0], dbOp.selectReadingsFromNode(26))
-r11 = map(lambda x: x[0], dbOp.selectReadingsFromNode(11))
-r42 = map(lambda x: x[0], dbOp.selectReadingsFromNode(42))
+r4 = map(lambda x: x[0], dbOp.selectReadingsFromNode(4))
+r6 = map(lambda x: x[0], dbOp.selectReadingsFromNode(6))
+r8 = map(lambda x: x[0], dbOp.selectReadingsFromNode(8))
+r13 = map(lambda x: x[0], dbOp.selectReadingsFromNode(13))
+r18 = map(lambda x: x[0], dbOp.selectReadingsFromNode(18))
+r23 = map(lambda x: x[0], dbOp.selectReadingsFromNode(23))
+r25 = map(lambda x: x[0], dbOp.selectReadingsFromNode(25))
+r49 = map(lambda x: x[0], dbOp.selectReadingsFromNode(49))
+'''
 for i in map(lambda x: x[0], dbOp.selectAllNodes()):
 	if i != 3: readings.append( (i, map(lambda x: x[0], dbOp.selectReadingsFromNode(i))) )
-dbOp.closeConnectionToDatabase()
 '''
+dbOp.closeConnectionToDatabase()
+
 
 
 
@@ -93,11 +103,21 @@ falseSignal = terMimicry.attack(r3, 28, 0, [r3])[0]
 '''
 
 
+
+# MC mimicry
+'''
+mcMimicry = MCMimicry(r3)
+'''
+
+
+
 # Plot stuff
 import matplotlib.pyplot as plt
-plt.axis('equal')
-plt.plot([1.2,1], 'b')
+#plt.axis('equal')
+
+plt.plot(r6, 'b')
 plt.show()
-
-
-
+plt.plot(r13, 'b')
+plt.show()
+plt.plot(r18, 'b')
+plt.show()
