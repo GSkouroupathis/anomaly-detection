@@ -46,6 +46,11 @@ def initTables():
 		print str(e)
 		print "readings error"
 	try:
+		dbCursor.execute('DROP TABLE IF EXISTS conditional_probabilities_table')
+	except Exception,e:
+		print str(e)
+		print "conditional probabilities error"
+	try:
 		dbCursor.execute('DROP TABLE IF EXISTS clusters_table')
 	except Exception,e:
 		print str(e)
@@ -83,11 +88,25 @@ def initTables():
 	######################### clusters_table #########################
 	dbCursor.execute('''
 	CREATE TABLE clusters_table (
+	root_node_id int,
 	cluster_id int,
 	centroid varchar(255),
-	root_node_id int,
-	PRIMARY KEY (cluster_id),
+	PRIMARY KEY (root_node_id, cluster_id),
 	FOREIGN KEY(root_node_id) REFERENCES cluster_groups_table(root_node_id)
+	)
+	''')
+	
+	###################### conditional_probabilities_table ######################
+	dbCursor.execute('''
+	CREATE TABLE conditional_probabilities_table (
+	root_node_id int,
+	cluster_before_id int,
+	cluster_after_id int,
+	probability real,
+	PRIMARY KEY (root_node_id, cluster_before_id, cluster_after_id),
+	FOREIGN KEY(root_node_id) REFERENCES cluster_table(root_node_id),
+	FOREIGN KEY(cluster_before_id) REFERENCES cluster_table(cluster_id),
+	FOREIGN KEY(cluster_after_id) REFERENCES cluster_table(cluster_id)
 	)
 	''')
 	
@@ -123,13 +142,15 @@ def initTables():
 	start_time varchar(15),
 	end_date varchar(10),
 	end_time varchar(15),
+	root_node_id int,
 	cluster_id int,
 	PRIMARY KEY (node_id, start_date, start_time, end_date, end_time),
-	FOREIGN KEY(node_id) REFERENCES nodes_table(node_id),
+	FOREIGN KEY(node_id) REFERENCES readings_table(node_id),
 	FOREIGN KEY(start_date) REFERENCES readings_table(date),
 	FOREIGN KEY(end_date) REFERENCES readings_table(date),
 	FOREIGN KEY(start_time) REFERENCES readings_table(time),
 	FOREIGN KEY(end_time) REFERENCES readings_table(time),
+	FOREIGN KEY(root_node_id) REFERENCES clusters_table(root_node_id),
 	FOREIGN KEY(cluster_id) REFERENCES clusters_table(cluster_id)
 	)
 	''')
@@ -144,13 +165,6 @@ def insertNode(node_id):
 	VALUES (?)
 	''', (node_id,))
 	dbConnection.commit()
-
-def selectAllNodes():
-	global dbCursor
-	dbCursor.execute('''
-	SELECT * FROM nodes_table
-	''')
-	return dbCursor.fetchall()
 
 def selectAllNodes():
 	global dbCursor
@@ -223,6 +237,14 @@ def selectReading(node_id, date, time):
 def selectReadingsFromNode(node_id):
 	global dbCursor
 	dbCursor.execute('''
+	SELECT * FROM readings_table
+	WHERE node_id = ?
+	''', (node_id,))
+	return dbCursor.fetchall()
+
+def selectDatasetFromNode(node_id):
+	global dbCursor
+	dbCursor.execute('''
 	SELECT temperature FROM readings_table
 	WHERE node_id = ?
 	''', (node_id,))
@@ -234,37 +256,52 @@ def selectAllReadings():
 	SELECT * FROM readings_table
 	''')
 	return dbCursor.fetchall()
+
+###############	###############	###############	
+#cluster_groups_table
+###############	###############	###############		
+def insertClusterGroup(nodeID, K, W):
+	global dbCursor
+	dbCursor.execute('''
+	INSERT INTO cluster_groups_table
+	(root_node_id, no_of_clusters, no_of_dimensions)
+	VALUES (?, ?, ?)
+	''', (nodeID, K, W))
+	dbConnection.commit()
 	
 ###############	###############	###############	
 #clusters_table
 ###############	###############	###############		
-def insertCluster(cluster_id):
+def insertCluster(nodeID, clusterID, centroid):
 	global dbCursor
 	dbCursor.execute('''
-	INSERT INTO clusters_table (cluster_id)
-	VALUES (?)
-	''', (cluster_id,))
+	INSERT INTO clusters_table (root_node_id, cluster_id, centroid)
+	VALUES (?, ?, ?)
+	''', (nodeID, clusterID, centroid))
 	dbConnection.commit()
-	
+
+###############	###############	###############	
+#conditional_probabilities_table
+###############	###############	###############		
+def insertConditionalProbability(nodeID, cbID, caID, prob):
+	global dbCursor
+	dbCursor.execute('''
+	INSERT INTO conditional_probabilities_table
+	(root_node_id, cluster_before_id, cluster_after_id, probability)
+	VALUES (?, ?, ?, ?)
+	''', (nodeID, cbID, caID, prob))
+	dbConnection.commit()
+
 ###############	###############	###############	
 #reading_segments_table
 ###############	###############	###############		
+def insertReadingSegment(nodeID, startDate, startTime, endDate, endTime, rNodeID, clusterId):
+	global dbCursor
+	dbCursor.execute('''
+	INSERT INTO reading_segments_table
+	(node_id, start_date, start_time, end_date, end_time, root_node_id, cluster_id)
+	VALUES (?, ?, ?, ?, ?, ?, ?)
+	''', (nodeID, startDate, startTime, endDate, endTime, rNodeID, clusterId))
+	dbConnection.commit()
 
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
-	
 	

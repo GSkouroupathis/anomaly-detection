@@ -31,30 +31,40 @@ def initTables():
 	
 	#Drop tables in case they already exist
 	try:
-		dbCursor.execute('DROP TABLE IF EXISTS data_segments_table')
+		dbCursor.execute('DROP TABLE IF EXISTS reading_segments_table')
 	except Exception,e:
 		print str(e)
-		print "ds"
-	try:
-		dbCursor.execute('DROP TABLE IF EXISTS clusters_table')
-	except Exception,e:
-		print str(e)
-		print "c"
-	try:
-		dbCursor.execute('DROP TABLE IF EXISTS readings_table')
-	except Exception,e:
-		print str(e)
-		print "r"
+		print "data segments error"
 	try:
 		dbCursor.execute('DROP TABLE IF EXISTS covariance_table')
 	except Exception,e:
 		print str(e)
-		print "cov"
+		print "covariance error"
+	try:
+		dbCursor.execute('DROP TABLE IF EXISTS readings_table')
+	except Exception,e:
+		print str(e)
+		print "readings error"
+	try:
+		dbCursor.execute('DROP TABLE IF EXISTS conditional_probabilities_table')
+	except Exception,e:
+		print str(e)
+		print "conditional probabilities error"
+	try:
+		dbCursor.execute('DROP TABLE IF EXISTS clusters_table')
+	except Exception,e:
+		print str(e)
+		print "clusters error"
+	try:
+		dbCursor.execute('DROP TABLE IF EXISTS cluster_groups_table')
+	except Exception,e:
+		print str(e)
+		print "cluster_groups error"
 	try:
 		dbCursor.execute('DROP TABLE IF EXISTS nodes_table')
 	except Exception,e:
 		print str(e)
-		print "n"
+		print "nodes error"
 
 	######################### nodes_table #########################
 	dbCursor.execute('''
@@ -64,18 +74,42 @@ def initTables():
 	)
 	''')
 
-	######################### covariance_table #########################
+	######################### cluster_groups_table #########################
 	dbCursor.execute('''
-	CREATE TABLE covariance_table (
-	node1_id int,
-	node2_id int,
-	covariance real,
-	PRIMARY KEY (node1_id, node2_id),
-	FOREIGN KEY(node1_id) REFERENCES nodes_table(node_id),
-	FOREIGN KEY(node2_id) REFERENCES nodes_table(node_id)
+	CREATE TABLE cluster_groups_table (
+	root_node_id int,
+	no_of_clusters int,
+	no_of_dimensions int,
+	PRIMARY KEY (root_node_id),
+	FOREIGN KEY(root_node_id) REFERENCES nodes_table(node_id)
 	)
 	''')
-
+	
+	######################### clusters_table #########################
+	dbCursor.execute('''
+	CREATE TABLE clusters_table (
+	cluster_id int,
+	centroid varchar(255),
+	root_node_id int,
+	PRIMARY KEY (cluster_id),
+	FOREIGN KEY(root_node_id) REFERENCES cluster_groups_table(root_node_id)
+	)
+	''')
+	
+	###################### conditional_probabilities_table ######################
+	dbCursor.execute('''
+	CREATE TABLE conditional_probabilities_table (
+	root_node_id int,
+	cluster_before_id int,
+	cluster_after_id int,
+	probability real,
+	PRIMARY KEY (root_node_id, cluster_before_id, cluster_after_id),
+	FOREIGN KEY(root_node_id) REFERENCES cluster_table(root_node_id),
+	FOREIGN KEY(cluster_before_id) REFERENCES cluster_table(cluster_id),
+	FOREIGN KEY(cluster_after_id) REFERENCES cluster_table(cluster_id)
+	)
+	''')
+	
 	######################### readings_table #########################
 	dbCursor.execute('''
 	CREATE TABLE readings_table (
@@ -88,25 +122,28 @@ def initTables():
 	)
 	''')
 	
-	######################### clusters_table #########################
+	######################### covariance_table #########################
 	dbCursor.execute('''
-	CREATE TABLE clusters_table (
-	cluster_id int,
-	PRIMARY KEY (cluster_id)
+	CREATE TABLE covariance_table (
+	node1_id int,
+	node2_id int,
+	covariance real,
+	PRIMARY KEY (node1_id, node2_id),
+	FOREIGN KEY(node1_id) REFERENCES nodes_table(node_id),
+	FOREIGN KEY(node2_id) REFERENCES nodes_table(node_id)
 	)
 	''')
 	
-	######################### data_segments_table #########################
+	######################### reading_segments_table #########################
 	dbCursor.execute('''
-	CREATE TABLE data_segments_table (
+	CREATE TABLE reading_segments_table (
 	node_id int,
 	start_date varchar(10),
-	end_date varchar(10),
 	start_time varchar(15),
+	end_date varchar(10),
 	end_time varchar(15),
-	mean real,
 	cluster_id int,
-	PRIMARY KEY (node_id, start_date, end_date, start_time, end_time),
+	PRIMARY KEY (node_id, start_date, start_time, end_date, end_time),
 	FOREIGN KEY(node_id) REFERENCES nodes_table(node_id),
 	FOREIGN KEY(start_date) REFERENCES readings_table(date),
 	FOREIGN KEY(end_date) REFERENCES readings_table(date),
@@ -126,13 +163,6 @@ def insertNode(node_id):
 	VALUES (?)
 	''', (node_id,))
 	dbConnection.commit()
-
-def selectAllNodes():
-	global dbCursor
-	dbCursor.execute('''
-	SELECT * FROM nodes_table
-	''')
-	return dbCursor.fetchall()
 
 def selectAllNodes():
 	global dbCursor
@@ -205,6 +235,14 @@ def selectReading(node_id, date, time):
 def selectReadingsFromNode(node_id):
 	global dbCursor
 	dbCursor.execute('''
+	SELECT * FROM readings_table
+	WHERE node_id = ?
+	''', (node_id,))
+	return dbCursor.fetchall()
+
+def selectDatasetFromNode(node_id):
+	global dbCursor
+	dbCursor.execute('''
 	SELECT temperature FROM readings_table
 	WHERE node_id = ?
 	''', (node_id,))
@@ -229,15 +267,9 @@ def insertCluster(cluster_id):
 	dbConnection.commit()
 	
 ###############	###############	###############	
-#data_segments_table
+#reading_segments_table
 ###############	###############	###############		
-def insertDataSegment(node_id, start_date, end_date, start_time, end_time, mean, cluster_id):
-	global dbCursor
-	dbCursor.execute('''
-	INSERT INTO data_segments_table (cluster_id)
-	VALUES (?, ?, ?, ?, ?, ?, ?)
-	''', (node_id, start_date, end_date, start_time, end_time, mean, cluster_id))
-	dbConnection.commit()
+
 	
 	
 	

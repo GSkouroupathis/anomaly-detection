@@ -6,34 +6,32 @@ class MCMimicry(Attack):
 	# Constructor
 	def __init__(self, dataset):
 		self.dataset = dataset
-		yoyo = self.choose_window_size(dataset)
-		self.w = yoyo[0]
-		print yoyo
 				
 	# 1 ##########################################################################
 	# Chooses the appropriate window size w
-	def choose_window_size(self, dataset=None):
+	def prepare(self, dataset=None):
 		if not dataset: dataset = self.dataset
 		
 		bestScore = -1
 		
 		for w in [5, 7, 8, 9, 10, 12, 15, 20, 30]:
-			print w
 			segment_list = numpy.array(self.segment_signal(dataset, w, 0))
+			norm_segments = map(lambda x: x-numpy.mean(x), segment_list)
 			(centroids, labels) = self.cluster(segment_list)
 			# the sum of segments in each cluster
 			clusterCount = numpy.bincount(labels)
 			condProbTable = self.create_cond_prob_table(centroids, labels, clusterCount)
 			tableScore = self.eval_cond_prob_table(condProbTable, clusterCount)
-			print tableScore
 			if tableScore > bestScore:
 				bestW = w
 				bestSegments = segment_list
 				(bestCentroids, bestLabels) = (centroids, labels)
 				bestCondProbTable = condProbTable
 				bestScore = tableScore
-				
-		return (bestW, bestSegments, bestCentroids, bestLabels, bestCondProbTable, bestScore)
+			
+			K = len(bestCentroids)
+			
+		return (bestW, bestSegments, bestCentroids, bestLabels, bestCondProbTable, K, bestScore)
 
 	# 2 ##########################################################################
 	# Divides signal into segments

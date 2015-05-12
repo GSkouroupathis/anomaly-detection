@@ -54,23 +54,14 @@ def init():
 	
 #init()
 
-readings = []
+
+
+## Stuff ##
+'''
 dbOp.connectToDatabase("data/db")
 r3 = map(lambda x: x[0], dbOp.selectReadingsFromNode(3))
-r4 = map(lambda x: x[0], dbOp.selectReadingsFromNode(4))
-r6 = map(lambda x: x[0], dbOp.selectReadingsFromNode(6))
-r8 = map(lambda x: x[0], dbOp.selectReadingsFromNode(8))
-r13 = map(lambda x: x[0], dbOp.selectReadingsFromNode(13))
-r18 = map(lambda x: x[0], dbOp.selectReadingsFromNode(18))
-r23 = map(lambda x: x[0], dbOp.selectReadingsFromNode(23))
-r25 = map(lambda x: x[0], dbOp.selectReadingsFromNode(25))
-r49 = map(lambda x: x[0], dbOp.selectReadingsFromNode(49))
-'''
-for i in map(lambda x: x[0], dbOp.selectAllNodes()):
-	if i != 3: readings.append( (i, map(lambda x: x[0], dbOp.selectReadingsFromNode(i))) )
-'''
 dbOp.closeConnectionToDatabase()
-
+'''
 
 
 
@@ -105,19 +96,52 @@ falseSignal = terMimicry.attack(r3, 28, 0, [r3])[0]
 
 
 # MC mimicry
-'''
-mcMimicry = MCMimicry(r3)
-'''
+# Prepare Attack
+	def prep():
+	dbOp.connectToDatabase("data/db")
+	nodes = map(lambda x: x[0], dbOp.selectAllNodes())
+	for node in nodes:
+		print ">>", node
+		readings = dbOp.selectReadingsFromNode(node)
+		dataset = map(lambda x: x[0], dbOp.selectDatasetFromNode(node))
+		mcMimicry = MCMimicry(dataset)
+		(w, segments, centroids, labels, condProbTable, K, score) = mcMimicry.prepare()
+		# insert cluster group
+		dbOp.insertClusterGroup(node, K, w)
+		# insert clusters
+		for (i, centroid) in enumerate(centroids):
+			dbOp.insertCluster(node, i, str(centroid))
+			print ">>>cluster", i
+		# insert conditional probabilities
+		for (i, bClusterList) in enumerate(condProbTable):
+			for (j, aClusterProb) in enumerate(bClusterList):
+				dbOp.insertConditionalProbability(node, i, j, aClusterProb)
+				print ">>>", i,j
+		# insert reading segments
+		uouo=len(segments)
+		for (i, segment) in enumerate(segments):
+			print ">>>segment", i,"/",uouo
+			start_date = readings[i*w][1]
+			start_time = readings[i*w][2]
+			end_date = readings[i*w + w -1][1]
+			end_time = readings[i*w + w -1][2]
+			print start_time, '-', end_time
+			cluster_id = int(labels[i])
+			dbOp.insertReadingSegment(node, start_date, start_time, end_date, end_time, node, cluster_id)
+	dbOp.closeConnectionToDatabase()
 
+#prep()
+
+# Launch Attack
+def launch():
+	pass
+
+
+#mcMimicry = MCMimicry(r3)
 
 
 # Plot stuff
 import matplotlib.pyplot as plt
 #plt.axis('equal')
-
-plt.plot(r6, 'b')
-plt.show()
-plt.plot(r13, 'b')
-plt.show()
-plt.plot(r18, 'b')
+plt.plot(r3, 'b')
 plt.show()
