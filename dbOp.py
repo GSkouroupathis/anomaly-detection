@@ -257,6 +257,15 @@ def selectAllReadings():
 	''')
 	return dbCursor.fetchall()
 
+def selectReadingsFromNodes(nodesList):
+	global dbCursor
+	dbCursor.execute('''
+	SELECT * FROM readings_table
+	WHERE node_id IN (%s)
+	''' % ','.join('?'*len(nodesList)), nodesList
+	)
+	return dbCursor.fetchall()
+
 ###############	###############	###############	
 #cluster_groups_table
 ###############	###############	###############		
@@ -269,6 +278,15 @@ def insertClusterGroup(nodeID, K, W):
 	''', (nodeID, K, W))
 	dbConnection.commit()
 	
+def selectClusterGroup(root_node_id):
+	global dbCursor
+	dbCursor.execute('''
+	SELECT * FROM cluster_groups_table
+	WHERE root_node_id = ?
+	''', (root_node_id,)
+	)
+	return dbCursor.fetchall()
+
 ###############	###############	###############	
 #clusters_table
 ###############	###############	###############		
@@ -291,6 +309,15 @@ def insertConditionalProbability(nodeID, cbID, caID, prob):
 	VALUES (?, ?, ?, ?)
 	''', (nodeID, cbID, caID, prob))
 	dbConnection.commit()
+	
+def selectCondProbs(root_node_id):
+	global dbCursor
+	dbCursor.execute('''
+	SELECT * FROM conditional_probabilities_table
+	WHERE root_node_id = ?
+	''', (root_node_id,)
+	)
+	return dbCursor.fetchall()
 
 ###############	###############	###############	
 #reading_segments_table
@@ -303,5 +330,23 @@ def insertReadingSegment(nodeID, startDate, startTime, endDate, endTime, rNodeID
 	VALUES (?, ?, ?, ?, ?, ?, ?)
 	''', (nodeID, startDate, startTime, endDate, endTime, rNodeID, clusterId))
 	dbConnection.commit()
+	
+def selectSegments(root_node_id, node_list):
+	global dbCursor
+	dbCursor.execute('''
+	SELECT * FROM reading_segments_table
+	WHERE root_node_id = ?
+	AND node_id IN (%s)
+	''' % ','.join('?'*len(node_list)), (root_node_id,) + node_list
+	)
+	return dbCursor.fetchall()
+
+
+
+
+
+
+
+
 
 	

@@ -57,11 +57,11 @@ def init():
 
 
 ## Stuff ##
-'''
+
 dbOp.connectToDatabase("data/db")
-r3 = map(lambda x: x[0], dbOp.selectReadingsFromNode(3))
+r3 = map(lambda x: x[0], dbOp.selectDatasetFromNode(3))
 dbOp.closeConnectionToDatabase()
-'''
+
 
 
 
@@ -97,7 +97,7 @@ falseSignal = terMimicry.attack(r3, 28, 0, [r3])[0]
 
 # MC mimicry
 # Prepare Attack
-	def prep():
+def prep():
 	dbOp.connectToDatabase("data/db")
 	nodes = map(lambda x: x[0], dbOp.selectAllNodes())
 	for node in nodes:
@@ -134,14 +134,56 @@ falseSignal = terMimicry.attack(r3, 28, 0, [r3])[0]
 
 # Launch Attack
 def launch():
-	pass
+	attackedSensor = 3
+	usedSensors = (3,)
+	target = 29
+	tstart = 0
+	
+	dbOp.connectToDatabase("data/db") ##
+	
+	# readings & info
+	nodes_readings = {}
+	allReadings = dbOp.selectReadingsFromNodes(usedSensors)
+	for r in allReadings:
+		nodeID = r[0]
+		if nodeID in nodes_readings.keys():
+			nodes_readings[nodeID].append(r[1:])
+		else:
+			nodes_readings[nodeID] = [r[1:]]
+	
+	# segments from used sensors
+	nodes_segments = {}
+	node_segments = dbOp.selectSegments(root_node_id=attackedSensor, node_list=usedSensors)
+	for n_segment in node_segments:
+		nodeID = n_segment[0]
+		if nodeID in nodes_segments.keys():
+			nodes_segments[nodeID].append(n_segment[1:])
+		else:
+			nodes_segments[nodeID] = [n_segment[1:]]
+			
+	# conditional probabilities table
+	K = dbOp.selectClusterGroup(root_node_id=attackedSensor)[0][1]
+	cond_probs_table = [[0]*K for i in range(K)]
+	cond_probs = dbOp.selectCondProbs(root_node_id=attackedSensor)
+	for probArray in cond_probs:
+		bCluster = probArray[1]
+		aCluster = probArray[2]
+		prob = probArray[3]
+		cond_probs_table[bCluster][aCluster] = prob
+	
+	dbOp.closeConnectionToDatabase() ##
+	
+	mcMimicry = MCMimicry()
+	iSignal = mcMimicry.attack(attackedSensor, target, tstart, nodes_segments, nodes_readings, cond_probs_table)
+	return iSignal
+	
+iSignal = launch()
 
 
-#mcMimicry = MCMimicry(r3)
 
 
 # Plot stuff
 import matplotlib.pyplot as plt
 #plt.axis('equal')
-plt.plot(r3, 'b')
+plt.plot(r3, 'b', iSignal, 'r')
 plt.show()

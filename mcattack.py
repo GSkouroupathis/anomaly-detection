@@ -1,10 +1,10 @@
 from attack import *
-import dbOp, math, numpy
+import dbOp, math, numpy, random
 from scipy.cluster.vq import kmeans2
 
 class MCMimicry(Attack):
 	# Constructor
-	def __init__(self, dataset):
+	def __init__(self, dataset=None):
 		self.dataset = dataset
 				
 	# 1 ##########################################################################
@@ -129,10 +129,23 @@ class MCMimicry(Attack):
 		totalClusterCount = sum(clusterCount)
 		return sum(map(lambda x: x[0]*(x[1]*1.0/totalClusterCount), zip(negentropies, clusterCount)))
 
+
+
+################################################################################
+################################################################################
+################################################################################
+
+
+
 	# 1 ##########################################################################	
 	# Attacks sensor_id until goal
-	def attack(self, sensor_z, goal, starting_index, sensor_set_z):
-		pass
+	def attack(self, sensorID, goal, startingIndex, sensorsSegmentsDic, sensorsReadingsDic, condProbTable):
+		dataset = map(lambda x: x[-1], sensorsReadingsDic[sensorID])
+		iSignal = [dataset[0]]
+		while iSignal[-1] < goal:
+			print iSignal[-1]
+			iSignal.append(random.choice(filter(lambda x: iSignal[-1]-x > 0.001 or x-iSignal[-1] > 0.2, dataset)))
+		return iSignal
 		
 	# 2 ##########################################################################	
 	def build_attack_tree(segments, goal, starting_index):
