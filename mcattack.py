@@ -1,5 +1,6 @@
 from attack import *
-import dbOp, math, numpy, random
+from attackTree import AttackTree
+import dbOp, math, numpy, random, datetime
 from scipy.cluster.vq import kmeans2
 
 class MCMimicry(Attack):
@@ -139,15 +140,40 @@ class MCMimicry(Attack):
 
 	# 1 ##########################################################################	
 	# Attacks sensor_id until goal
-	def attack(self, sensorID, goal, startingIndex, sensorsSegmentsDic, sensorsReadingsDic, condProbTable):
-		dataset = map(lambda x: x[-1], sensorsReadingsDic[sensorID])
-		iSignal = [dataset[0]]
-		while iSignal[-1] < goal:
-			print iSignal[-1]
-			iSignal.append(random.choice(filter(lambda x: iSignal[-1]-x > 0.001 or x-iSignal[-1] > 0.2, dataset)))
+	def attack(self, sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable):
+				
+		# find actual time of attack start
+		firstDateTime = sensorsSegmentsReadingsDic[sensorID][0][-1][0][0] + ' ' + sensorsSegmentsReadingsDic[sensorID][0][-1][0][1]
+		
+		atkStartDateTime = datetime.datetime.strptime(firstDateTime, '%Y-%m-%d %H:%M:%S') + datetime.timedelta(0,atckDelay)
+		
+		# constructs starting signal
+		startSignal = []
+		startSegment = None
+		for (i, segmentInfo) in enumerate(sensorsSegmentsReadingsDic[sensorID]):
+			firstSegmentDateTime = datetime.datetime.strptime(segmentInfo[0] + ' ' + segmentInfo[1], '%Y-%m-%d %H:%M:%S')
+
+			# find if the segment will be added into the attack
+			if firstSegmentDateTime < atkStartDateTime:
+				startSignal += map(lambda x: x[-1], segmentInfo[-1])
+			else:
+				# we don't need segment i-1
+				startSegment = sensorsSegmentsReadingsDic[sensorID][i-1]
+				if i > 0:
+					del sensorsSegmentsReadingsDic[sensorID][i-1]
+				break
+		
+		iSignal = self.tree_attack(sensorID, startSignal, startSegment, goal, sensorsSegmentsReadingsDic, condProbTable)
 		return iSignal
 		
 	# 2 ##########################################################################	
-	def build_attack_tree(segments, goal, starting_index):
-		pass
+	def tree_attack(self, sensorID, startSignal, startSegment, goal, sensorsSegmentsReadingsDic, condProbTable):
+		# first build attack tree & root node
+		atckTree = AttackTree(sensorID, 0.5, 29, condProbTable)
+		atckTree.tree_attack(sensorID, sensorsSegmentsReadingsDic)
+		
+		
+		
+		
+		
 		

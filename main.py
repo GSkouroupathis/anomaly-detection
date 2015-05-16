@@ -137,7 +137,7 @@ def launch():
 	attackedSensor = 3
 	usedSensors = (3,)
 	target = 29
-	tstart = 0
+	tdelay = 1300
 	
 	dbOp.connectToDatabase("data/db") ##
 	
@@ -152,15 +152,18 @@ def launch():
 			nodes_readings[nodeID] = [r[1:]]
 	
 	# segments from used sensors
-	nodes_segments = {}
-	node_segments = dbOp.selectSegments(root_node_id=attackedSensor, node_list=usedSensors)
-	for n_segment in node_segments:
+	noOfDimensions = dbOp.getNoOfDimensions(rootNodeID = attackedSensor)
+
+	nodes_segments_reads = {}
+	node_segments_reads = dbOp.selectSegments(root_node_id=attackedSensor, node_list=usedSensors)
+	for (i, n_segment) in enumerate(node_segments_reads):
 		nodeID = n_segment[0]
-		if nodeID in nodes_segments.keys():
-			nodes_segments[nodeID].append(n_segment[1:])
+		if nodeID in nodes_segments_reads.keys():
+			nodes_segments_reads[nodeID].append(n_segment[1:])
 		else:
-			nodes_segments[nodeID] = [n_segment[1:]]
-			
+			nodes_segments_reads[nodeID] = [n_segment[1:]]
+		nodes_segments_reads[nodeID][-1] += (nodes_readings[nodeID][i*noOfDimensions:i*noOfDimensions+noOfDimensions],)
+	
 	# conditional probabilities table
 	K = dbOp.selectClusterGroup(root_node_id=attackedSensor)[0][1]
 	cond_probs_table = [[0]*K for i in range(K)]
@@ -174,7 +177,7 @@ def launch():
 	dbOp.closeConnectionToDatabase() ##
 	
 	mcMimicry = MCMimicry()
-	iSignal = mcMimicry.attack(attackedSensor, target, tstart, nodes_segments, nodes_readings, cond_probs_table)
+	iSignal = mcMimicry.attack(attackedSensor, target, tdelay, nodes_segments_reads, cond_probs_table)
 	return iSignal
 	
 iSignal = launch()

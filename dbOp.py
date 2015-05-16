@@ -286,6 +286,15 @@ def selectClusterGroup(root_node_id):
 	''', (root_node_id,)
 	)
 	return dbCursor.fetchall()
+	
+def getNoOfDimensions(rootNodeID):
+	global dbCursor
+	dbCursor.execute('''
+	SELECT no_of_dimensions FROM cluster_groups_table
+	WHERE root_node_id = ?
+	''', (rootNodeID,)
+	)
+	return dbCursor.fetchall()[0][0]
 
 ###############	###############	###############	
 #clusters_table
