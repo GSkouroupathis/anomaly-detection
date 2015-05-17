@@ -88,10 +88,10 @@ for i in cor:
 
 
 # Terence mimicry
-'''
+
 terMimicry = TerMimicry()
-falseSignal = terMimicry.attack(r3, 28, 0, [r3])[0]
-'''
+falseSignal = terMimicry.attack(r3, 29, 0, [r3])[0]
+
 
 
 
@@ -177,16 +177,22 @@ def launch():
 	dbOp.closeConnectionToDatabase() ##
 	
 	mcMimicry = MCMimicry()
-	iSignal = mcMimicry.attack(attackedSensor, target, tdelay, nodes_segments_reads, cond_probs_table)
+	iSignal = mcMimicry.tree_attack(attackedSensor, target, tdelay, nodes_segments_reads, cond_probs_table)
 	return iSignal
 	
-iSignal = launch()
+iSignal = launch()[0]
+print iSignal
+sss=raw_input()
+EKFd = EKFDetector(iSignal)
+CUSUMd = CUSUMDetector(iSignal, h=0.4, w=10, EKFd=EKFd)
+res  = CUSUMd.detect()[0]
 
-
-
+EKFd = EKFDetector(falseSignal)
+CUSUMd = CUSUMDetector(falseSignal, h=0.4, w=10, EKFd=EKFd)
+res2  = CUSUMd.detect()[0]
 
 # Plot stuff
 import matplotlib.pyplot as plt
 #plt.axis('equal')
-plt.plot(r3, 'b', iSignal, 'r')
+plt.plot(r3[:15], 'b', iSignal, 'r', res, 'g', falseSignal, 'k', res2, 'c')
 plt.show()

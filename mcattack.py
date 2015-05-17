@@ -1,5 +1,6 @@
 from attack import *
 from attackTree import AttackTree
+from attackNode import AttackNode
 import dbOp, math, numpy, random, datetime
 from scipy.cluster.vq import kmeans2
 
@@ -140,7 +141,7 @@ class MCMimicry(Attack):
 
 	# 1 ##########################################################################	
 	# Attacks sensor_id until goal
-	def attack(self, sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable):
+	def tree_attack(self, sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable):
 				
 		# find actual time of attack start
 		firstDateTime = sensorsSegmentsReadingsDic[sensorID][0][-1][0][0] + ' ' + sensorsSegmentsReadingsDic[sensorID][0][-1][0][1]
@@ -163,14 +164,18 @@ class MCMimicry(Attack):
 					del sensorsSegmentsReadingsDic[sensorID][i-1]
 				break
 		
-		iSignal = self.tree_attack(sensorID, startSignal, startSegment, goal, sensorsSegmentsReadingsDic, condProbTable)
+		iSignal = self.tree_attack_(sensorID, startSignal, startSegment, goal, sensorsSegmentsReadingsDic, condProbTable)
 		return iSignal
 		
 	# 2 ##########################################################################	
-	def tree_attack(self, sensorID, startSignal, startSegment, goal, sensorsSegmentsReadingsDic, condProbTable):
+	def tree_attack_(self, sensorID, startSignal, startSegment, goal, sensorsSegmentsReadingsDic, condProbTable):
 		# first build attack tree & root node
-		atckTree = AttackTree(sensorID, 0.5, 29, condProbTable)
-		atckTree.tree_attack(sensorID, sensorsSegmentsReadingsDic)
+		atckTree = AttackTree(sensorID, startSignal, 0.25, 29, condProbTable)
+		rootNode = AttackNode(atckTree, sensorID, startSegment)
+		atckTree.set_start_node(rootNode)
+		
+		# launch the attack
+		return atckTree.tree_attack(sensorID, sensorsSegmentsReadingsDic)
 		
 		
 		

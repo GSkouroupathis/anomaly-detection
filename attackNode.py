@@ -5,21 +5,16 @@ class AttackNode(object):
 		self.nodeID = nodeID
 		self.segmentInfo = segmentInfo
 		self.children = []
+		self.signalUntil = []
 
-	def isEndSegment(self):
-		'''
-		try:
-			targetTime = next(i for (i,d) in enumerate( map(lambda x: x-self.tree.targetTemp, self.dataset) if abs(d) < self.tree.threshold))-1
-		except:
-			targetTime = -1
-		if targetTime != -1:
-			return (True, targetTime)
-		else:
-			return (False, targetTime)
-		'''
+	def set_signal_until(self, signal):
+		self.signalUntil = signal
+		return self
 		
-	def set_children(segmentsNodes):
+	def set_children(self, segmentsNodes):
 		self.children = segmentsNodes
 		
-		
+	#Class representation
+	def __repr__(self):
+		return "tree:" + str(self.tree) + "\nnodeID: " + str(self.nodeID) + "\nsegmentInfo: " + str(self.segmentInfo) + "\nchildren: " + str(self.children)
 		
