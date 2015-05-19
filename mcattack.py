@@ -1,4 +1,5 @@
 from attack import *
+from segment import *
 from attackTree import AttackTree
 from attackNode import AttackNode
 import dbOp, math, numpy, random, datetime
@@ -138,11 +139,7 @@ class MCMimicry(Attack):
 ################################################################################
 
 
-
-	# 1 ##########################################################################	
-	# Attacks sensor_id until goal
-	def tree_attack(self, sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable):
-				
+	def prepare_attack(self, sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable):
 		# find actual time of attack start
 		firstDateTime = sensorsSegmentsReadingsDic[sensorID][0][-1][0][0] + ' ' + sensorsSegmentsReadingsDic[sensorID][0][-1][0][1]
 		
@@ -163,20 +160,73 @@ class MCMimicry(Attack):
 				if i > 0:
 					del sensorsSegmentsReadingsDic[sensorID][i-1]
 				break
+			
+		return (startSignal, startSegment, sensorsSegmentsReadingsDic)
+
+	# 1 ##########################################################################	
+	# Tree Attacks sensor_id until goal
+	def tree_attack(self, sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable):
+		if atckDelay<100000:atckDelay+=100000
+		(startSignal, startSegment, sensorsSegmentsReadingsDic) = self.prepare_attack(sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable)
 		
 		iSignal = self.tree_attack_(sensorID, startSignal, startSegment, goal, sensorsSegmentsReadingsDic, condProbTable)
-		return iSignal
+		return (startSignal, iSignal)
 		
 	# 2 ##########################################################################	
 	def tree_attack_(self, sensorID, startSignal, startSegment, goal, sensorsSegmentsReadingsDic, condProbTable):
 		# first build attack tree & root node
-		atckTree = AttackTree(sensorID, startSignal, 0.25, 29, condProbTable)
+		atckTree = AttackTree(sensorID, startSignal, 0.2, goal, condProbTable)
 		rootNode = AttackNode(atckTree, sensorID, startSegment)
 		atckTree.set_start_node(rootNode)
 		
 		# launch the attack
-		return atckTree.tree_attack(sensorID, sensorsSegmentsReadingsDic)
+		return atckTree.attack(sensorID, sensorsSegmentsReadingsDic)
 		
+	###
+	def random_attack(self, sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable):
+		
+		(startSignal, startSegment, sensorsSegmentsReadingsDic) = self.prepare_attack(sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable)
+
+		# actually create segments
+		segments = []
+		for s in sensorsSegmentsReadingsDic[sensorID]:
+			segments.append(Segment(s[4],s[5],s[0],s[1],s[2],s[3],map(lambda x:x[-1], s[-1])))
+		startSegment = Segment(startSegment[4],startSegment[5],startSegment[0],startSegment[1],startSegment[2],startSegment[3],map(lambda x:x[-1], startSegment[-1]))
+		iSignal = startSignal[:]
+		lastSegment = startSegment
+		finalValue = lastSegment.dataset[-1]
+		diff = abs(finalValue - goal)
+		
+		while diff > 0.1:
+			
+			# filter by goal
+			candidateSegments = [segment for segment in segments if abs(segment.dataset[-1] - goal) < diff]
+			
+			# filter by dataset
+			candidateSegments = [segment for segment in candidateSegments if abs(segment.dataset[0] - lastSegment.dataset[-1]) < 0.15]
+			print len(candidateSegments)
+			#filter by first derivative
+			candidateSegments = [segment for segment in candidateSegments if abs(segment.der1[0] - lastSegment.der1[-1]) < 0.1]
+			print len(candidateSegments)
+			#filter by second derivative
+			candidateSegments = [segment for segment in candidateSegments if abs(segment.der2[0] - lastSegment.der2[-1]) < 0.2]
+			print len(candidateSegments)
+			print '--'
+			lastSegment = candidateSegments[0]
+			
+			endPoints = [ i for (i,r) in enumerate(lastSegment.dataset) if abs(r-goal)< 0.1 ]
+			
+			if len(endPoints) != 0:
+				iSignal +=  lastSegment.dataset[:endPoints[0]+1].tolist()
+				break
+			else:
+				iSignal += lastSegment.dataset.tolist()
+				
+			finalValue = lastSegment.dataset[-1]
+			diff = abs(finalValue - goal)
+			
+		return (startSignal, iSignal)
+			
 		
 		
 		

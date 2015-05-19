@@ -90,7 +90,7 @@ for i in cor:
 # Terence mimicry
 
 terMimicry = TerMimicry()
-falseSignal = terMimicry.attack(r3, 29, 0, [r3])[0]
+falseSignal = terMimicry.attack(r3, 28, 0, [r3])[0]
 
 
 
@@ -133,11 +133,11 @@ def prep():
 #prep()
 
 # Launch Attack
-def launch():
+def launch(atck):
 	attackedSensor = 3
 	usedSensors = (3,)
-	target = 29
-	tdelay = 1300
+	goal = 28
+	tdelay = 1
 	
 	dbOp.connectToDatabase("data/db") ##
 	
@@ -177,22 +177,47 @@ def launch():
 	dbOp.closeConnectionToDatabase() ##
 	
 	mcMimicry = MCMimicry()
-	iSignal = mcMimicry.tree_attack(attackedSensor, target, tdelay, nodes_segments_reads, cond_probs_table)
-	return iSignal
-	
-iSignal = launch()[0]
-print iSignal
-sss=raw_input()
+	if atck == 0:
+		(startSignal, iSignal) = mcMimicry.tree_attack(attackedSensor, goal, tdelay, nodes_segments_reads, cond_probs_table)
+	elif atck == 1:
+		(startSignal, iSignal) = mcMimicry.random_attack(attackedSensor, goal, tdelay, nodes_segments_reads, cond_probs_table)
+	else:
+		return None
+	return (startSignal, iSignal)
+
+
+(startSignal, iSignal) = launch(1)
+#iSignal = iSignal[0]
+#badSignal = iSignal[len(startSignal):]
+
+#iSignal = [20.204, 19.4396, 19.4102, 19.4102, 19.4004, 19.371, 19.3612, 19.3612, 19.3612, 19.3612, 19.3514, 19.371, 20.204, 19.4396, 19.4102, 19.4102, 19.4004, 19.371, 19.3612, 19.3612, 19.3612, 19.3612, 19.3514, 19.371, 19.1652, 19.1456, 19.1848, 19.1848, 19.175, 19.1652, 19.1652, 19.5474, 19.8316, 20.302, 21.1644, 21.8504, 22.0856, 21.9876, 22.1052, 22.2032, 22.5168, 23.4184, 24.0456, 24.9472, 25.4666, 25.3784, 25.4568, 25.251, 25.398, 25.4078, 25.4862, 25.5254, 25.6822, 25.6626, 25.8194, 25.8194, 25.8194, 25.8488, 25.9076, 26.0056, 26.0056, 25.8488, 26.1624, 26.133, 26.2016, 26.5544, 26.7406, 26.9268, 27.113, 27.2796, 27.2502, 27.26, 27.2992, 27.5736, 27.603, 27.7304, 27.6618, 27.9166]
+
 EKFd = EKFDetector(iSignal)
 CUSUMd = CUSUMDetector(iSignal, h=0.4, w=10, EKFd=EKFd)
 res  = CUSUMd.detect()[0]
+#badRes = res[len(startSignal):]
 
+'''
 EKFd = EKFDetector(falseSignal)
 CUSUMd = CUSUMDetector(falseSignal, h=0.4, w=10, EKFd=EKFd)
 res2  = CUSUMd.detect()[0]
+'''
+
+EKFd = EKFDetector(r3)
+CUSUMd = CUSUMDetector(r3, h=0.4, w=10, EKFd=EKFd)
+res3  = CUSUMd.detect()[0]
+
+yo=50
+top = 0
+for i in res:
+	if i > 1.3 or i <-1.3:
+		top += 1
+print "Detection rate:", top*1.0/len(res)
 
 # Plot stuff
 import matplotlib.pyplot as plt
 #plt.axis('equal')
-plt.plot(r3[:15], 'b', iSignal, 'r', res, 'g', falseSignal, 'k', res2, 'c')
+
+plt.plot(r3, 'b', res3, 'm', iSignal, 'r', res, 'g')
+
 plt.show()

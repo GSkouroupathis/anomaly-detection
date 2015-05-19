@@ -1,4 +1,5 @@
 from attackNode import AttackNode
+import random
 
 class AttackTree(object):
 
@@ -12,7 +13,7 @@ class AttackTree(object):
 	def set_start_node(self, atckNode):
 		self.startNode = atckNode
 	
-	def tree_attack(self, nodeID, sensorsSegmentsReadingsDic):
+	def attack(self, nodeID, sensorsSegmentsReadingsDic):
 		# attack signals
 		atckPaths = []
 		nodesLeft = [AttackNode(self, nodeID, segmentInfo) for segmentInfo in sensorsSegmentsReadingsDic[nodeID]]
@@ -28,13 +29,21 @@ class AttackTree(object):
 				endDatapoints = [i for (i, x) in \
 				enumerate(dataset) if abs(self.targetTemp-x)<self.threshold]
 				if len(endDatapoints) != 0:
-					atckPaths.append(self.startSignal + node.signalUntil + dataset[:endDatapoints[0]])
+					atckPaths.append(self.startSignal + node.signalUntil + dataset[:endDatapoints[0]+1])
 					
 				#find segs in next cluster & stitchable
 				nodeCluster = node.segmentInfo[5]
-				nextCluster = self.condProbTable[nodeCluster].index(max(self.condProbTable[nodeCluster]))
+				# choose next cluster w/ probability
+				'''ran = random.randint(0,1)
+				nextCluster = nodeCluster #fix
+				for (i, prob) in enumerate(self.condProbTable[nodeCluster]):
+					ran -= prob
+					if ran <= 0:
+						nextCluster = i
+						break'''
+				#nextCluster = self.condProbTable[nodeCluster].index(max(self.condProbTable[nodeCluster]))
 				childrenSegsIn = [i for (i,n) in enumerate(nodesLeft) if abs(dataset[-1]-n.segmentInfo[6][0][-1])<self.threshold]
-				'''childrenSegsIn = [i for (i,n) in enumerate(nodesLeft) if n.segmentInfo[5] == nextCluster and abs(dataset[-1]-n.segmentInfo[6][0][-1])<self.threshold]'''
+				#childrenSegsIn = [i for (i,n) in enumerate(nodesLeft) if n.segmentInfo[5] == nextCluster and abs(dataset[-1]-n.segmentInfo[6][0][-1])<self.threshold]
 				
 				# set node's children
 				node.set_children([nodesLeft[i].set_signal_until(node.signalUntil + dataset) for i in childrenSegsIn])
