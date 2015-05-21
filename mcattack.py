@@ -139,29 +139,27 @@ class MCMimicry(Attack):
 ################################################################################
 
 
-	def prepare_attack(self, sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable):
+	def prepare_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic):
+		
 		# find actual time of attack start
-		firstDateTime = sensorsSegmentsReadingsDic[sensorID][0][-1][0][0] + ' ' + sensorsSegmentsReadingsDic[sensorID][0][-1][0][1]
+		firstDateTime = nodesSegmentsDic[sensorID][0].startDate + ' ' + nodesSegmentsDic[sensorID][0].startTime
 		
 		atkStartDateTime = datetime.datetime.strptime(firstDateTime, '%Y-%m-%d %H:%M:%S') + datetime.timedelta(0,atckDelay)
 		
 		# constructs starting signal
 		startSignal = []
 		startSegment = None
-		for (i, segmentInfo) in enumerate(sensorsSegmentsReadingsDic[sensorID]):
-			firstSegmentDateTime = datetime.datetime.strptime(segmentInfo[0] + ' ' + segmentInfo[1], '%Y-%m-%d %H:%M:%S')
+		for (i, segment) in enumerate(nodesSegmentsDic[sensorID]):
+			firstSegmentDateTime = datetime.datetime.strptime(segment.startDate+' '+segment.startTime, '%Y-%m-%d %H:%M:%S')
 
 			# find if the segment will be added into the attack
 			if firstSegmentDateTime < atkStartDateTime:
-				startSignal += map(lambda x: x[-1], segmentInfo[-1])
+				startSignal += segment.dataset.tolist()
 			else:
-				# we don't need segment i-1
-				startSegment = sensorsSegmentsReadingsDic[sensorID][i-1]
-				if i > 0:
-					del sensorsSegmentsReadingsDic[sensorID][i-1]
+				startSegment = nodesSegmentsDic[sensorID][i-1]
 				break
 			
-		return (startSignal, startSegment, sensorsSegmentsReadingsDic)
+		return (startSignal, startSegment)
 
 	# 1 ##########################################################################	
 	# Tree Attacks sensor_id until goal
@@ -182,16 +180,21 @@ class MCMimicry(Attack):
 		# launch the attack
 		return atckTree.attack(sensorID, sensorsSegmentsReadingsDic)
 		
-	###
-	def random_attack(self, sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable):
 		
-		(startSignal, startSegment, sensorsSegmentsReadingsDic) = self.prepare_attack(sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable)
+		
+		
+		
+		
+	###
+	def random_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable):
+		
+		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
 
-		# actually create segments
+		# merge all segments cause we don't use condProbsTable
 		segments = []
-		for s in sensorsSegmentsReadingsDic[sensorID]:
-			segments.append(Segment(s[4],s[5],s[0],s[1],s[2],s[3],map(lambda x:x[-1], s[-1])))
-		startSegment = Segment(startSegment[4],startSegment[5],startSegment[0],startSegment[1],startSegment[2],startSegment[3],map(lambda x:x[-1], startSegment[-1]))
+		for nodeID in nodesSegmentsDic.keys():
+			segments += nodesSegmentsDic[nodeID]
+		
 		iSignal = startSignal[:]
 		lastSegment = startSegment
 		finalValue = lastSegment.dataset[-1]
@@ -201,10 +204,11 @@ class MCMimicry(Attack):
 			
 			# filter by goal
 			candidateSegments = [segment for segment in segments if abs(segment.dataset[-1] - goal) < diff]
-			
+
 			# filter by dataset
-			candidateSegments = [segment for segment in candidateSegments if abs(segment.dataset[0] - lastSegment.dataset[-1]) < 0.15]
+			'''candidateSegments = [segment for segment in candidateSegments if abs(segment.dataset[0] - lastSegment.dataset[-1]) < 0.15]
 			print len(candidateSegments)
+			print '##'
 			#filter by first derivative
 			candidateSegments = [segment for segment in candidateSegments if abs(segment.der1[0] - lastSegment.der1[-1]) < 0.1]
 			print len(candidateSegments)
@@ -212,8 +216,10 @@ class MCMimicry(Attack):
 			candidateSegments = [segment for segment in candidateSegments if abs(segment.der2[0] - lastSegment.der2[-1]) < 0.2]
 			print len(candidateSegments)
 			print '--'
+			'''
 			lastSegment = candidateSegments[0]
 			
+			# see if we reached goal temperature
 			endPoints = [ i for (i,r) in enumerate(lastSegment.dataset) if abs(r-goal)< 0.1 ]
 			
 			if len(endPoints) != 0:

@@ -70,7 +70,7 @@ class TerMimicry(Attack):
 				z_array = np.array(z)
 				first_order = np.gradient(z_array)
 			
-				EKFd = EKFDetector(z)
+				EKFd = EKFDetector(z, z)
 				CUSUMd = CUSUMDetector(z, h=0.4, w=10, EKFd=EKFd)
 				detectionResults = CUSUMd.detect()
 			

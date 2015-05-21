@@ -1,13 +1,15 @@
 from fileparser import *
 from readingsfilter import *
-import dbOp, datetime, testing, attack
+import dbOp, datetime, testing, attack, data
+from reading import *
+from segment import *
 from ekfdetector import *
 from cusumdetector import *
 from terattack import *
 from mcattack import *
 from plotter import *
 import numpy
-
+	
 # Initialises tables
 # parses the readings,
 # filters the dataset
@@ -19,11 +21,10 @@ def init():
 	# Filter readings
 	allFilteredReadings = []
 	readingsFilter = ReadingsFilter(threshold=4)
-	inp = 0
+
 	for node in parsedReadings.keys():
 
 		parsedReadings[node].sort(key=lambda x: datetime.datetime.strptime(x[1]+' '+x[2], '%Y-%m-%d %H:%M:%S'))
-		inp += len(parsedReadings[node])
 		
 		readingsFilter.set_readings( parsedReadings[node] )
 		filteredReadings = readingsFilter.filter_readings()
@@ -42,7 +43,6 @@ def init():
 	'''
 	nodes = map(lambda x: x[0], dbOp.selectAllNodes())
 	for (i, node1) in enumerate(nodes):
-		i += 1
 		readings1 = dbOp.selectReadingsFromNode(node1)
 		for node2 in nodes[i+1:]:
 			readings2 = dbOp.selectReadingsFromNode(node2)
@@ -54,15 +54,11 @@ def init():
 	
 #init()
 
-
-
 ## Stuff ##
-
 dbOp.connectToDatabase("data/db")
-r3 = map(lambda x: x[0], dbOp.selectDatasetFromNode(3))
+r3 = dbOp.selectReadingsFromNode(3)
 dbOp.closeConnectionToDatabase()
-
-
+(d3Training, d3Testing, r3Tr, r3Te) = data.getTrainingTesting(r3)
 
 
 ## CUSUM detection ##
@@ -88,12 +84,10 @@ for i in cor:
 
 
 # Terence mimicry
-
+'''
 terMimicry = TerMimicry()
-falseSignal = terMimicry.attack(r3, 28, 0, [r3])[0]
-
-
-
+terSignal = terMimicry.attack(d3Training, 28, 0, [d3Training])[0]
+'''
 
 # MC mimicry
 # Prepare Attack
@@ -141,46 +135,51 @@ def launch(atck):
 	
 	dbOp.connectToDatabase("data/db") ##
 	
-	# readings & info
-	nodes_readings = {}
-	allReadings = dbOp.selectReadingsFromNodes(usedSensors)
-	for r in allReadings:
-		nodeID = r[0]
-		if nodeID in nodes_readings.keys():
-			nodes_readings[nodeID].append(r[1:])
-		else:
-			nodes_readings[nodeID] = [r[1:]]
-	
-	# segments from used sensors
-	noOfDimensions = dbOp.getNoOfDimensions(rootNodeID = attackedSensor)
+	# readings & info & also segments
 
-	nodes_segments_reads = {}
-	node_segments_reads = dbOp.selectSegments(root_node_id=attackedSensor, node_list=usedSensors)
-	for (i, n_segment) in enumerate(node_segments_reads):
-		nodeID = n_segment[0]
-		if nodeID in nodes_segments_reads.keys():
-			nodes_segments_reads[nodeID].append(n_segment[1:])
-		else:
-			nodes_segments_reads[nodeID] = [n_segment[1:]]
-		nodes_segments_reads[nodeID][-1] += (nodes_readings[nodeID][i*noOfDimensions:i*noOfDimensions+noOfDimensions],)
+	noOfDimensions = dbOp.getNoOfDimensions(rootNodeID = attackedSensor)
+	nodesSegmentsDic = {}
 	
+	for nodeID in usedSensors:
+	
+		readingsInfo = dbOp.selectReadingsFromNode(nodeID)
+		if len(filter(lambda x:x[-1]>29, readingsInfo)) > 0:
+			print 33
+			asd=raw_input('d')
+		readings = [Reading(r[0],r[1],r[2],r[3]) for r in readingsInfo]
+		(dTraining, dTesting, rTr, rTe) = data.getTrainingTesting(readingsInfo)
+		# get only segments after first training datetime
+		firstTrainDateTime = datetime.datetime.strptime(rTr[0][1]+' '+rTr[0][2], '%Y-%m-%d %H:%M:%S')
+		segsInfo = filter(lambda segInfo: datetime.datetime.strptime(segInfo[1]+' '+segInfo[2], '%Y-%m-%d %H:%M:%S')>=firstTrainDateTime, dbOp.selectSegmentsFromNode(nodeID))
+		segments = [Segment(segInfo[0],segInfo[6],segInfo[1],segInfo[2],segInfo[3],segInfo[4]) for segInfo in segsInfo]
+		
+		for (i, segment) in enumerate(segments):
+			segStartDateTime = datetime.datetime.strptime(segment.startDate+' '+segment.startTime, '%Y-%m-%d %H:%M:%S')
+			segEndDateTime = datetime.datetime.strptime(segment.endDate+' '+segment.endTime, '%Y-%m-%d %H:%M:%S')
+			#set readings
+			segReadings = readings[i*noOfDimensions:(i+1)*noOfDimensions]
+			segment.set_readings(segReadings)
+			
+		# set segments
+		nodesSegmentsDic[nodeID] = segments
+		
 	# conditional probabilities table
 	K = dbOp.selectClusterGroup(root_node_id=attackedSensor)[0][1]
-	cond_probs_table = [[0]*K for i in range(K)]
-	cond_probs = dbOp.selectCondProbs(root_node_id=attackedSensor)
-	for probArray in cond_probs:
+	condProbsTable = [[0]*K for i in range(K)]
+	condProbs = dbOp.selectCondProbs(root_node_id=attackedSensor)
+	for probArray in condProbs:
 		bCluster = probArray[1]
 		aCluster = probArray[2]
 		prob = probArray[3]
-		cond_probs_table[bCluster][aCluster] = prob
-	
+		condProbsTable[bCluster][aCluster] = prob
+
 	dbOp.closeConnectionToDatabase() ##
 	
 	mcMimicry = MCMimicry()
 	if atck == 0:
-		(startSignal, iSignal) = mcMimicry.tree_attack(attackedSensor, goal, tdelay, nodes_segments_reads, cond_probs_table)
+		(startSignal, iSignal) = mcMimicry.tree_attack(attackedSensor, goal, tdelay, sensorsSegmentsReadingsDic, cond_probs_table)
 	elif atck == 1:
-		(startSignal, iSignal) = mcMimicry.random_attack(attackedSensor, goal, tdelay, nodes_segments_reads, cond_probs_table)
+		(startSignal, iSignal) = mcMimicry.random_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
 	else:
 		return None
 	return (startSignal, iSignal)
@@ -192,22 +191,22 @@ def launch(atck):
 
 #iSignal = [20.204, 19.4396, 19.4102, 19.4102, 19.4004, 19.371, 19.3612, 19.3612, 19.3612, 19.3612, 19.3514, 19.371, 20.204, 19.4396, 19.4102, 19.4102, 19.4004, 19.371, 19.3612, 19.3612, 19.3612, 19.3612, 19.3514, 19.371, 19.1652, 19.1456, 19.1848, 19.1848, 19.175, 19.1652, 19.1652, 19.5474, 19.8316, 20.302, 21.1644, 21.8504, 22.0856, 21.9876, 22.1052, 22.2032, 22.5168, 23.4184, 24.0456, 24.9472, 25.4666, 25.3784, 25.4568, 25.251, 25.398, 25.4078, 25.4862, 25.5254, 25.6822, 25.6626, 25.8194, 25.8194, 25.8194, 25.8488, 25.9076, 26.0056, 26.0056, 25.8488, 26.1624, 26.133, 26.2016, 26.5544, 26.7406, 26.9268, 27.113, 27.2796, 27.2502, 27.26, 27.2992, 27.5736, 27.603, 27.7304, 27.6618, 27.9166]
 
-EKFd = EKFDetector(iSignal)
+EKFd = EKFDetector(iSignal, d3Training)
 CUSUMd = CUSUMDetector(iSignal, h=0.4, w=10, EKFd=EKFd)
 res  = CUSUMd.detect()[0]
 #badRes = res[len(startSignal):]
 
 '''
-EKFd = EKFDetector(falseSignal)
-CUSUMd = CUSUMDetector(falseSignal, h=0.4, w=10, EKFd=EKFd)
-res2  = CUSUMd.detect()[0]
+EKFd = EKFDetector(terSignal, d3Training)
+CUSUMd = CUSUMDetector(terSignal, h=0.4, w=10, EKFd=EKFd)
+terRes  = CUSUMd.detect()[0]
 '''
 
-EKFd = EKFDetector(r3)
-CUSUMd = CUSUMDetector(r3, h=0.4, w=10, EKFd=EKFd)
+EKFd = EKFDetector(d3Testing, d3Training)
+CUSUMd = CUSUMDetector(d3Testing, h=0.4, w=10, EKFd=EKFd)
 res3  = CUSUMd.detect()[0]
 
-yo=50
+yo=len(iSignal)
 top = 0
 for i in res:
 	if i > 1.3 or i <-1.3:
@@ -217,7 +216,5 @@ print "Detection rate:", top*1.0/len(res)
 # Plot stuff
 import matplotlib.pyplot as plt
 #plt.axis('equal')
-
-plt.plot(r3, 'b', res3, 'm', iSignal, 'r', res, 'g')
-
+plt.plot(d3Testing, 'g', res3, 'y', iSignal, 'r', res, 'm')
 plt.show()

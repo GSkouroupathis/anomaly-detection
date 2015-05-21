@@ -350,6 +350,14 @@ def selectSegments(root_node_id, node_list):
 	)
 	return dbCursor.fetchall()
 
+def selectSegmentsFromNode(nodeID):
+	global dbCursor
+	dbCursor.execute('''
+	SELECT * FROM reading_segments_table
+	WHERE node_id = ?
+	''', (nodeID,)
+	)
+	return dbCursor.fetchall()
 
 
 

@@ -3,8 +3,9 @@ import numpy
 
 class EKFDetector(Detector):
 	# Constructor
-	def __init__(self, dataset, Q=None, delta=None):
+	def __init__(self, dataset, datasetForR, Q=None, delta=None):
 		Detector.__init__(self, dataset)
+		self.datasetForR = datasetForR
 		self.delta = delta
 		if Q:
 			self.Q = Q
@@ -35,10 +36,10 @@ class EKFDetector(Detector):
 		# calculate R, the variance
 		# between z_k and z_k1
 		def calculate_R():
-			z_diff = [self.dataset[0]]
+			z_diff = [self.datasetForR[0]]
     
-			for i in range(1, len(self.dataset)):
-				z_diff.append(self.dataset[i] - self.dataset[i-1])
+			for i in range(1, len(self.datasetForR)):
+				z_diff.append(self.datasetForR[i] - self.datasetForR[i-1])
 
 			R = numpy.var(z_diff)
 
