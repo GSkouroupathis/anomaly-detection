@@ -82,9 +82,8 @@ class MCMimicry(Attack):
 	def eval_cond_prob_table(self, condProbTable, clusterCount):
 		negentropies = []
 		for row in condProbTable:
-
-
 			negentropies.append(self.negentropy(row))
+			
 		score = self.w_m_negentropy(negentropies, clusterCount)
 		return score
 		
@@ -186,15 +185,15 @@ class MCMimicry(Attack):
 		
 		
 	###
-	def random_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable):
+	def greedy_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable):
 		
 		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
 
-		# merge all segments cause we don't use condProbsTable
+		# merge all segments
 		segments = []
 		for nodeID in nodesSegmentsDic.keys():
 			segments += nodesSegmentsDic[nodeID]
-		
+			
 		iSignal = startSignal[:]
 		lastSegment = startSegment
 		finalValue = lastSegment.dataset[-1]
@@ -204,20 +203,14 @@ class MCMimicry(Attack):
 			
 			# filter by goal
 			candidateSegments = [segment for segment in segments if abs(segment.dataset[-1] - goal) < diff]
-
-			# filter by dataset
-			'''candidateSegments = [segment for segment in candidateSegments if abs(segment.dataset[0] - lastSegment.dataset[-1]) < 0.15]
-			print len(candidateSegments)
-			print '##'
-			#filter by first derivative
-			candidateSegments = [segment for segment in candidateSegments if abs(segment.der1[0] - lastSegment.der1[-1]) < 0.1]
-			print len(candidateSegments)
-			#filter by second derivative
-			candidateSegments = [segment for segment in candidateSegments if abs(segment.der2[0] - lastSegment.der2[-1]) < 0.2]
-			print len(candidateSegments)
-			print '--'
-			'''
-			lastSegment = candidateSegments[0]
+		
+			# filter by stitching point
+			candidateSegmentsTemp = [segment for segment in candidateSegments if abs(segment.dataset[0] - lastSegment.dataset[-1]) < 0.3]
+			if len(candidateSegmentsTemp) > 0:
+				candidateSegments = candidateSegmentsTemp
+			else:
+				candidateSegments = sorted(candidateSegments, key=lambda s: s.dataset[0]-lastSegment.dataset[-1])
+			lastSegment = candidateSegments[0] # take first & best stitch
 			
 			# see if we reached goal temperature
 			endPoints = [ i for (i,r) in enumerate(lastSegment.dataset) if abs(r-goal)< 0.1 ]
@@ -233,7 +226,60 @@ class MCMimicry(Attack):
 			
 		return (startSignal, iSignal)
 			
+			
+			
+			
+	######
+	#####
+	####
+	###
+	##		
+	def random_cluster_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable):
+
+		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
 		
+		# merge all segments
+		segments = []
+		for nodeID in nodesSegmentsDic.keys():
+			segments += nodesSegmentsDic[nodeID]
+			
+		iSignal = startSignal[:]
+		lastSegment = startSegment
+		finalValue = lastSegment.dataset[-1]
+		diff = abs(finalValue - goal)
+		
+		while diff > 0.1:
+		
+			lastCluster = lastSegment.cluster
+			print lastCluster
+			# we pick the next cluster probabilistically from condProbsTable
+			rand = random.uniform(0,1)
+			for (i, prob) in enumerate(condProbsTable[lastCluster]):
+				rand -= prob
+				if rand <= 0:
+					nextCluster = i
+					break
+				
+			# filter by cluster
+			candidateSegments = [segment for segment in segments if segment.cluster == nextCluster]
+			
+			# get best segment
+			lastSegment = random.choice(candidateSegments)
+			#print lastSegment.dataset,
+			
+			# see if we reached goal temperature
+			endPoints = [ i for (i,r) in enumerate(lastSegment.dataset) if abs(r-goal)< 0.1 ]
+			
+			if len(endPoints) != 0:
+				iSignal +=  lastSegment.dataset[:endPoints[0]+1].tolist()
+				break
+			else:
+				iSignal += lastSegment.dataset.tolist()
+				
+			finalValue = lastSegment.dataset[-1]
+			diff = abs(finalValue - goal)
+			
+		return (startSignal, iSignal)
 		
 		
 		

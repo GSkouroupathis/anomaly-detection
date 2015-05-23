@@ -16,7 +16,7 @@ import numpy
 # and stores them into DB
 def init():
 	# Parse readings
-	parsedReadings = parse_file("data/data.txt")
+	parsedReadings = parse_file("data/data.txt", maxTemp=32)
 
 	# Filter readings
 	allFilteredReadings = []
@@ -86,19 +86,20 @@ for i in cor:
 # Terence mimicry
 '''
 terMimicry = TerMimicry()
-terSignal = terMimicry.attack(d3Training, 28, 0, [d3Training])[0]
+terSignal = terMimicry.attack(d3Training, 30, 0, [d3Training])[0]
 '''
 
 # MC mimicry
 # Prepare Attack
 def prep():
+	#dummy = raw_input('This is gonna take forever (press any key to continue)')
 	dbOp.connectToDatabase("data/db")
 	nodes = map(lambda x: x[0], dbOp.selectAllNodes())
 	for node in nodes:
 		print ">>", node
 		readings = dbOp.selectReadingsFromNode(node)
-		dataset = map(lambda x: x[0], dbOp.selectDatasetFromNode(node))
-		mcMimicry = MCMimicry(dataset)
+		(dTr, dTe, rTr, rTe) = data.getTrainingTesting(readings)
+		mcMimicry = MCMimicry(dTr)
 		(w, segments, centroids, labels, condProbTable, K, score) = mcMimicry.prepare()
 		# insert cluster group
 		dbOp.insertClusterGroup(node, K, w)
@@ -115,10 +116,10 @@ def prep():
 		uouo=len(segments)
 		for (i, segment) in enumerate(segments):
 			print ">>>segment", i,"/",uouo
-			start_date = readings[i*w][1]
-			start_time = readings[i*w][2]
-			end_date = readings[i*w + w -1][1]
-			end_time = readings[i*w + w -1][2]
+			start_date = rTr[i*w][1]
+			start_time = rTr[i*w][2]
+			end_date = rTr[i*w + w -1][1]
+			end_time = rTr[i*w + w -1][2]
 			print start_time, '-', end_time
 			cluster_id = int(labels[i])
 			dbOp.insertReadingSegment(node, start_date, start_time, end_date, end_time, node, cluster_id)
@@ -143,19 +144,25 @@ def launch(atck):
 	for nodeID in usedSensors:
 	
 		readingsInfo = dbOp.selectReadingsFromNode(nodeID)
-		if len(filter(lambda x:x[-1]>29, readingsInfo)) > 0:
-			print 33
-			asd=raw_input('d')
-		readings = [Reading(r[0],r[1],r[2],r[3]) for r in readingsInfo]
 		(dTraining, dTesting, rTr, rTe) = data.getTrainingTesting(readingsInfo)
-		# get only segments after first training datetime
-		firstTrainDateTime = datetime.datetime.strptime(rTr[0][1]+' '+rTr[0][2], '%Y-%m-%d %H:%M:%S')
-		segsInfo = filter(lambda segInfo: datetime.datetime.strptime(segInfo[1]+' '+segInfo[2], '%Y-%m-%d %H:%M:%S')>=firstTrainDateTime, dbOp.selectSegmentsFromNode(nodeID))
+		readings = [Reading(r[0],r[1],r[2],r[3]) for r in rTr]
+		
+		# get segments
+		#firstTrainDateTime = datetime.datetime.strptime(rTr[0][1]+' '+rTr[0][2], '%Y-%m-%d %H:%M:%S')
+		#segsInfo = filter(lambda segInfo: datetime.datetime.strptime(segInfo[1]+' '+segInfo[2], '%Y-%m-%d %H:%M:%S')>=firstTrainDateTime, dbOp.selectSegmentsFromNode(nodeID))
+		segsInfo = dbOp.selectSegmentsFromNode(nodeID)
 		segments = [Segment(segInfo[0],segInfo[6],segInfo[1],segInfo[2],segInfo[3],segInfo[4]) for segInfo in segsInfo]
+		# we also need to remove excess training data that belong to a split segment
+		# no we don't lol
+		#firstSegDatetime = datetime.datetime.strptime(segments[0].startDate+' '+segments[0].startTime, '%Y-%m-%d %H:%M:%S')
+		#for (i,r) in enumerate(readings):
+		#	if datetime.datetime.strptime(r.date+' '+r.time, '%Y-%m-%d %H:%M:%S') >= firstSegDatetime:
+		#		readings = readings[i:]
+		#		break
 		
 		for (i, segment) in enumerate(segments):
-			segStartDateTime = datetime.datetime.strptime(segment.startDate+' '+segment.startTime, '%Y-%m-%d %H:%M:%S')
-			segEndDateTime = datetime.datetime.strptime(segment.endDate+' '+segment.endTime, '%Y-%m-%d %H:%M:%S')
+			#segStartDateTime = datetime.datetime.strptime(segment.startDate+' '+segment.startTime, '%Y-%m-%d %H:%M:%S')
+			#segEndDateTime = datetime.datetime.strptime(segment.endDate+' '+segment.endTime, '%Y-%m-%d %H:%M:%S')
 			#set readings
 			segReadings = readings[i*noOfDimensions:(i+1)*noOfDimensions]
 			segment.set_readings(segReadings)
@@ -179,13 +186,15 @@ def launch(atck):
 	if atck == 0:
 		(startSignal, iSignal) = mcMimicry.tree_attack(attackedSensor, goal, tdelay, sensorsSegmentsReadingsDic, cond_probs_table)
 	elif atck == 1:
-		(startSignal, iSignal) = mcMimicry.random_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
+		(startSignal, iSignal) = mcMimicry.greedy_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
+	elif atck == 2:
+		(startSignal, iSignal) = mcMimicry.random_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
 	else:
 		return None
 	return (startSignal, iSignal)
 
 
-(startSignal, iSignal) = launch(1)
+(startSignal, iSignal) = launch(2)
 #iSignal = iSignal[0]
 #badSignal = iSignal[len(startSignal):]
 

@@ -88,7 +88,7 @@ class TerMimicry(Attack):
 					
 					start_index = last_i + 1
 				
-					if (abs(final_stitch[-1] - end_temp) <= self.TEMPERATURE_DIFF_THRESHOLD):
+					if len(final_stitch) > 0 and (abs(final_stitch[-1] - end_temp) <= self.TEMPERATURE_DIFF_THRESHOLD):
 						return final_stitch
 
 		return final_stitch				

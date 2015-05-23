@@ -24,6 +24,9 @@ class Segment(object):
 		self.dataset = np.array(dataset)
 		self.der1 = np.gradient(self.dataset)
 		self.der2 = np.gradient(self.der1)
-		
+	
+	def __repr__(self):
+		return str(self.nodeID)+'|'+str(self.cluster)+'|'+str(self.startDate)+'|'+str(self.startTime)+'|'+str(self.endDate)+'|'+str(self.endTime)+'|'+str(self.readings)
+			
 	def __str__(self):
 		return str(self.nodeID)+'|'+str(self.cluster)+'|'+str(self.startDate)+'|'+str(self.startTime)+'|'+str(self.endDate)+'|'+str(self.endTime)+'|'+str(self.readings)

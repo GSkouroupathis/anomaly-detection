@@ -1,4 +1,4 @@
-def parse_file(path):
+def parse_file(path, maxTemp):
 	with open(path, 'r') as input_file:
 		fileLines = input_file.readlines()
 		readings = {}
@@ -32,7 +32,7 @@ def parse_file(path):
 				temperature = float(entry_b[4])
 				
 				# sanitising
-				if temperature > 30 or temperature < 0:
+				if temperature > maxTemp or temperature < 0:
 					sanCheck = 0
 					print " ** Invalid temperature. Dropped record", i
 					
