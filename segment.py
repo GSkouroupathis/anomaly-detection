@@ -15,7 +15,10 @@ class Segment(object):
 			dataset = map(lambda r:r.temperature, readings)
 			self.dataset = np.array(dataset)
 			self.der1 = np.gradient(self.dataset)
+			self.meanDer1 = np.mean(self.der1)
 			self.der2 = np.gradient(self.der1)
+			self.meanDer2 = np.mean(self.der2)
+			self.dTemp = dataset[-1] - dataset[0]
 			
 	# Set segment dataset
 	def set_readings(self, readings):
@@ -23,7 +26,16 @@ class Segment(object):
 		dataset = map(lambda r:r.temperature, readings)
 		self.dataset = np.array(dataset)
 		self.der1 = np.gradient(self.dataset)
+		self.meanDer1 = np.mean(self.der1)
 		self.der2 = np.gradient(self.der1)
+		self.meanDer2 = np.mean(self.der2)
+		self.dTemp = dataset[-1] - dataset[0]
+	
+	# Interpolate for 1 point
+	def forecast(self):
+		y1 = self.dataset[-1]
+		y0 = self.dataset[-2]
+		return (y1-y0)*2+y0
 	
 	def __repr__(self):
 		return str(self.nodeID)+'|'+str(self.cluster)+'|'+str(self.startDate)+'|'+str(self.startTime)+'|'+str(self.endDate)+'|'+str(self.endTime)+'|'+str(self.readings)

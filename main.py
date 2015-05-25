@@ -54,11 +54,6 @@ def init():
 	
 #init()
 
-## Stuff ##
-dbOp.connectToDatabase("data/db")
-r3 = dbOp.selectReadingsFromNode(3)
-dbOp.closeConnectionToDatabase()
-(d3Training, d3Testing, r3Tr, r3Te) = data.getTrainingTesting(r3)
 
 
 ## CUSUM detection ##
@@ -67,8 +62,6 @@ EKFd = EKFDetector(readings)
 CUSUMd = CUSUMDetector(readings, h=0.4, w=10, EKFd=EKFd)
 res  = CUSUMd.detect()
 '''
-
-
 
 # Calculates correlations
 '''
@@ -79,14 +72,6 @@ for (i,r) in readings:
 cor = sorted(cor, key=lambda x: x[1], reverse=True)
 for i in cor:
 	print i
-'''
-
-
-
-# Terence mimicry
-'''
-terMimicry = TerMimicry()
-terSignal = terMimicry.attack(d3Training, 30, 0, [d3Training])[0]
 '''
 
 # MC mimicry
@@ -128,11 +113,7 @@ def prep():
 #prep()
 
 # Launch Attack
-def launch(atck):
-	attackedSensor = 3
-	usedSensors = (3,)
-	goal = 28
-	tdelay = 1
+def launch(atck, attackedSensor, usedSensors, goal, tdelay):
 	
 	dbOp.connectToDatabase("data/db") ##
 	
@@ -148,22 +129,10 @@ def launch(atck):
 		readings = [Reading(r[0],r[1],r[2],r[3]) for r in rTr]
 		
 		# get segments
-		#firstTrainDateTime = datetime.datetime.strptime(rTr[0][1]+' '+rTr[0][2], '%Y-%m-%d %H:%M:%S')
-		#segsInfo = filter(lambda segInfo: datetime.datetime.strptime(segInfo[1]+' '+segInfo[2], '%Y-%m-%d %H:%M:%S')>=firstTrainDateTime, dbOp.selectSegmentsFromNode(nodeID))
 		segsInfo = dbOp.selectSegmentsFromNode(nodeID)
 		segments = [Segment(segInfo[0],segInfo[6],segInfo[1],segInfo[2],segInfo[3],segInfo[4]) for segInfo in segsInfo]
-		# we also need to remove excess training data that belong to a split segment
-		# no we don't lol
-		#firstSegDatetime = datetime.datetime.strptime(segments[0].startDate+' '+segments[0].startTime, '%Y-%m-%d %H:%M:%S')
-		#for (i,r) in enumerate(readings):
-		#	if datetime.datetime.strptime(r.date+' '+r.time, '%Y-%m-%d %H:%M:%S') >= firstSegDatetime:
-		#		readings = readings[i:]
-		#		break
 		
 		for (i, segment) in enumerate(segments):
-			#segStartDateTime = datetime.datetime.strptime(segment.startDate+' '+segment.startTime, '%Y-%m-%d %H:%M:%S')
-			#segEndDateTime = datetime.datetime.strptime(segment.endDate+' '+segment.endTime, '%Y-%m-%d %H:%M:%S')
-			#set readings
 			segReadings = readings[i*noOfDimensions:(i+1)*noOfDimensions]
 			segment.set_readings(segReadings)
 			
@@ -189,41 +158,55 @@ def launch(atck):
 		(startSignal, iSignal) = mcMimicry.greedy_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
 	elif atck == 2:
 		(startSignal, iSignal) = mcMimicry.random_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
+	elif atck == 3:
+		(startSignal, iSignal) = mcMimicry.greedy_smooth_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
+	elif atck == 4:
+		(startSignal, iSignal) = mcMimicry.first_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
+	elif atck == 5:
+		(startSignal, iSignal) = mcMimicry.super_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
 	else:
 		return None
-	return (startSignal, iSignal)
+	return (startSignal, iSignal, dTraining, dTesting)
+####
+attackedSensor = 3
+usedSensors = (attackedSensor,)
+goal = 30
+tdelay = 1
+(startSignal, iSignal, dTraining, dTesting) = launch(5, attackedSensor, usedSensors, goal, tdelay)
 
 
-(startSignal, iSignal) = launch(2)
-#iSignal = iSignal[0]
-#badSignal = iSignal[len(startSignal):]
-
-#iSignal = [20.204, 19.4396, 19.4102, 19.4102, 19.4004, 19.371, 19.3612, 19.3612, 19.3612, 19.3612, 19.3514, 19.371, 20.204, 19.4396, 19.4102, 19.4102, 19.4004, 19.371, 19.3612, 19.3612, 19.3612, 19.3612, 19.3514, 19.371, 19.1652, 19.1456, 19.1848, 19.1848, 19.175, 19.1652, 19.1652, 19.5474, 19.8316, 20.302, 21.1644, 21.8504, 22.0856, 21.9876, 22.1052, 22.2032, 22.5168, 23.4184, 24.0456, 24.9472, 25.4666, 25.3784, 25.4568, 25.251, 25.398, 25.4078, 25.4862, 25.5254, 25.6822, 25.6626, 25.8194, 25.8194, 25.8194, 25.8488, 25.9076, 26.0056, 26.0056, 25.8488, 26.1624, 26.133, 26.2016, 26.5544, 26.7406, 26.9268, 27.113, 27.2796, 27.2502, 27.26, 27.2992, 27.5736, 27.603, 27.7304, 27.6618, 27.9166]
-
-EKFd = EKFDetector(iSignal, d3Training)
+EKFd = EKFDetector(iSignal, dTraining)
 CUSUMd = CUSUMDetector(iSignal, h=0.4, w=10, EKFd=EKFd)
 res  = CUSUMd.detect()[0]
-#badRes = res[len(startSignal):]
 
-'''
-EKFd = EKFDetector(terSignal, d3Training)
+# Terence mimicry
+terMimicry = TerMimicry()
+terSignal = terMimicry.attack(dTraining, 30, 0, [dTraining])[0]
+EKFd = EKFDetector(terSignal, dTraining)
 CUSUMd = CUSUMDetector(terSignal, h=0.4, w=10, EKFd=EKFd)
 terRes  = CUSUMd.detect()[0]
-'''
 
-EKFd = EKFDetector(d3Testing, d3Training)
-CUSUMd = CUSUMDetector(d3Testing, h=0.4, w=10, EKFd=EKFd)
+EKFd = EKFDetector(dTesting, dTraining)
+CUSUMd = CUSUMDetector(dTesting, h=0.4, w=10, EKFd=EKFd)
 res3  = CUSUMd.detect()[0]
 
-yo=len(iSignal)
+
+
 top = 0
 for i in res:
 	if i > 1.3 or i <-1.3:
 		top += 1
-print "Detection rate:", top*1.0/len(res)
+print "my Detection rate:", top*1.0/len(res)
+top = 0
+for i in terRes:
+	if i > 1.3 or i <-1.3:
+		top += 1
+print "ter Detection rate:", top*1.0/len(terRes)
 
 # Plot stuff
 import matplotlib.pyplot as plt
 #plt.axis('equal')
-plt.plot(d3Testing, 'g', res3, 'y', iSignal, 'r', res, 'm')
+plt.plot(dTesting, 'g', res3, 'y', iSignal, 'r', res, 'm')
+#plt.plot(dTesting, 'g', res3, 'y', iSignal, 'r', res, 'm', terSignal, 'b', terRes, 'c')
+#plt.plot( d3Testing, 'g', terSignal, 'r', terRes, 'm')
 plt.show()
