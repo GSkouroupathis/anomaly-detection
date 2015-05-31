@@ -9,8 +9,8 @@ def getTrainingTesting(readings):
 	# get first datetime
 	firstDaTi = datetime.datetime.strptime(readings[0][1]+' '+readings[0][2], '%Y-%m-%d %H:%M:%S')
 
-	# add three day
-	dateAfter = firstDaTi + datetime.timedelta(3, 0)
+	# add a day
+	dateAfter = firstDaTi + datetime.timedelta(1, 0)
 
 	# find end of testing data
 	endTestI = 0
@@ -25,6 +25,3 @@ def getTrainingTesting(readings):
 			break
 	
 	return (dataset[endTestI+1:], dataset[:endTestI+1], readings[endTestI+1:], readings[:endTestI+1])
-	
-	
-	

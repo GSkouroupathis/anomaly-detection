@@ -9,6 +9,9 @@ from terattack import *
 from mcattack import *
 from plotter import *
 import numpy
+import scipy as sp
+from scipy import stats
+
 	
 # Initialises tables
 # parses the readings,
@@ -81,11 +84,14 @@ def prep():
 	dbOp.connectToDatabase("data/db")
 	nodes = map(lambda x: x[0], dbOp.selectAllNodes())
 	for node in nodes:
+		if node > 50: continue #faulty nodes / waste of time
 		print ">>", node
 		readings = dbOp.selectReadingsFromNode(node)
 		(dTr, dTe, rTr, rTe) = data.getTrainingTesting(readings)
+		if len(dTr) == 0: continue
 		mcMimicry = MCMimicry(dTr)
 		(w, segments, centroids, labels, condProbTable, K, score) = mcMimicry.prepare()
+		if w is None: continue
 		# insert cluster group
 		dbOp.insertClusterGroup(node, K, w)
 		# insert clusters
@@ -100,7 +106,7 @@ def prep():
 		# insert reading segments
 		uouo=len(segments)
 		for (i, segment) in enumerate(segments):
-			print ">>>segment", i,"/",uouo
+			print ">>>segment", i+1,"/",uouo
 			start_date = rTr[i*w][1]
 			start_time = rTr[i*w][2]
 			end_date = rTr[i*w + w -1][1]
@@ -164,15 +170,19 @@ def launch(atck, attackedSensor, usedSensors, goal, tdelay):
 		(startSignal, iSignal) = mcMimicry.first_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
 	elif atck == 5:
 		(startSignal, iSignal) = mcMimicry.super_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
+	elif atck == 6:
+		(startSignal, iSignal) = mcMimicry.superer_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=False)
+	elif atck == 7:
+		(startSignal, iSignal) = mcMimicry.cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
 	else:
 		return None
 	return (startSignal, iSignal, dTraining, dTesting)
 ####
-attackedSensor = 3
+attackedSensor = 26
 usedSensors = (attackedSensor,)
 goal = 30
 tdelay = 1
-(startSignal, iSignal, dTraining, dTesting) = launch(5, attackedSensor, usedSensors, goal, tdelay)
+(startSignal, iSignal, dTraining, dTesting) = launch(6, attackedSensor, usedSensors, goal, tdelay)
 
 
 EKFd = EKFDetector(iSignal, dTraining)
@@ -181,7 +191,7 @@ res  = CUSUMd.detect()[0]
 
 # Terence mimicry
 terMimicry = TerMimicry()
-terSignal = terMimicry.attack(dTraining, 30, 0, [dTraining])[0]
+terSignal = terMimicry.attack(dTraining, 28, 0, [dTraining])[0]
 EKFd = EKFDetector(terSignal, dTraining)
 CUSUMd = CUSUMDetector(terSignal, h=0.4, w=10, EKFd=EKFd)
 terRes  = CUSUMd.detect()[0]
@@ -191,22 +201,66 @@ CUSUMd = CUSUMDetector(dTesting, h=0.4, w=10, EKFd=EKFd)
 res3  = CUSUMd.detect()[0]
 
 
+#### Trick #
+trickI = 20
+trick=[]
+while trickI<30:
+	trick.append(trickI)
+	trickI += 0.015
+EKFd = EKFDetector(trick, dTraining)
+CUSUMd = CUSUMDetector(trick, h=0.4, w=10, EKFd=EKFd)
+trickRes  = CUSUMd.detect()[0]
+
+EKFd = EKFDetector(dTraining, dTraining)
+CUSUMd = CUSUMDetector(dTraining, h=0.4, w=10, EKFd=EKFd)
+baseRes  = CUSUMd.detect()[0]
+
+#threshold
+thr = 1.362
 
 top = 0
+for i in baseRes:
+	if i > thr or i < -thr:
+		top += 1
+print "base Detection rate:", top*1.0/len(baseRes)
+top = 0
+for i in res3:
+	if i > thr or i <-thr:
+		top += 1
+print "real Detection rate:", top*1.0/len(res3)
+top = 0
 for i in res:
-	if i > 1.3 or i <-1.3:
+	if i > thr or i <-thr:
 		top += 1
 print "my Detection rate:", top*1.0/len(res)
 top = 0
 for i in terRes:
-	if i > 1.3 or i <-1.3:
+	if i > thr or i <-thr:
 		top += 1
 print "ter Detection rate:", top*1.0/len(terRes)
+top = 0
+for i in trickRes:
+	if i > thr or i <-thr:
+		top += 1
+print "trick Detection rate:", top*1.0/len(trickRes)
 
+thrL=[thr] * len(dTesting)
 # Plot stuff
 import matplotlib.pyplot as plt
-#plt.axis('equal')
-plt.plot(dTesting, 'g', res3, 'y', iSignal, 'r', res, 'm')
-#plt.plot(dTesting, 'g', res3, 'y', iSignal, 'r', res, 'm', terSignal, 'b', terRes, 'c')
-#plt.plot( d3Testing, 'g', terSignal, 'r', terRes, 'm')
+plt.subplot(2,1,1)
+plt.plot(dTesting, linewidth=2, linestyle="--", c="green", solid_capstyle="butt", label="Temperature")
+plt.plot(iSignal, linewidth=1, linestyle="-", c="red", solid_capstyle="butt", label="My attack")
+##plt.plot(trick, linewidth=2, linestyle="-", c="red", solid_capstyle="butt", label="linear attack")
+#plt.plot(terSignal, linewidth=1, linestyle="-", c="blue", solid_capstyle="butt", label="Terence attack")
+#plt.legend(loc='lower right')
+plt.ylabel('Temperature')
+
+plt.subplot(2,1,2)
+plt.plot(thrL, linewidth=2, linestyle="--", c="black", solid_capstyle="butt")
+plt.plot(res3, linewidth=2, linestyle="--", c="green", solid_capstyle="butt")
+plt.plot(res, linewidth=1, linestyle="-", c="red", solid_capstyle="butt")
+##plt.plot(trickRes, linewidth=1, linestyle="-", c="red", solid_capstyle="butt")
+#plt.plot(terRes, linewidth=1, linestyle="-", c="blue", solid_capstyle="butt")
+plt.ylabel('SN Values')
+plt.xlabel('Time')
 plt.show()
