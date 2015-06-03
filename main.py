@@ -171,8 +171,10 @@ def launch(atck, attackedSensor, usedSensors, goal, tdelay):
 	elif atck == 5:
 		(startSignal, iSignal) = mcMimicry.super_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
 	elif atck == 6:
-		(startSignal, iSignal) = mcMimicry.superer_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=False)
+		(startSignal, iSignal) = mcMimicry.superer_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=True)
 	elif atck == 7:
+		(startSignal, iSignal) = mcMimicry.softmax_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=True)
+	elif atck == 8:
 		(startSignal, iSignal) = mcMimicry.cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
 	else:
 		return None
@@ -182,7 +184,7 @@ attackedSensor = 26
 usedSensors = (attackedSensor,)
 goal = 30
 tdelay = 1
-(startSignal, iSignal, dTraining, dTesting) = launch(6, attackedSensor, usedSensors, goal, tdelay)
+(startSignal, iSignal, dTraining, dTesting) = launch(7, attackedSensor, usedSensors, goal, tdelay)
 
 
 EKFd = EKFDetector(iSignal, dTraining)
@@ -248,7 +250,7 @@ thrL=[thr] * len(dTesting)
 # Plot stuff
 import matplotlib.pyplot as plt
 plt.subplot(2,1,1)
-plt.plot(dTesting, linewidth=2, linestyle="--", c="green", solid_capstyle="butt", label="Temperature")
+plt.plot(dTesting, linewidth=1, linestyle="-", c="green", solid_capstyle="butt", label="Temperature")
 plt.plot(iSignal, linewidth=1, linestyle="-", c="red", solid_capstyle="butt", label="My attack")
 ##plt.plot(trick, linewidth=2, linestyle="-", c="red", solid_capstyle="butt", label="linear attack")
 #plt.plot(terSignal, linewidth=1, linestyle="-", c="blue", solid_capstyle="butt", label="Terence attack")

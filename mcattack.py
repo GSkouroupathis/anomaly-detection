@@ -634,6 +634,143 @@ class MCMimicry(Attack):
 		return (startSignal, iSignal)
 		
 		
+		
+		
+		
+		
+		
+		
+		
+		
+		# softmax cluster attack
+	def softmax_cluster_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=False):
+		propvarderiv = 0.8
+		propdifftemp = 0.5
+		
+		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
+		
+		# merge all segments
+		segments = []
+		for nodeID in nodesSegmentsDic.keys():
+			segments += nodesSegmentsDic[nodeID]
+		
+		iSignal = startSignal[:]
+		lastSegment = startSegment
+		finalValue = lastSegment.dataset[-1]
+		diff = abs(finalValue - goal)
+		gg=0
+		while diff > 0.1 and gg<600:
+			#gg+=1
+			# we pick the next cluster probabilistically from condProbsTable
+			lastCluster = lastSegment.cluster
+			rand = random.uniform(0,1)
+			for (i, prob) in enumerate(condProbsTable[lastCluster]):
+				rand -= prob
+				if rand <= 0:
+					nextCluster = i
+					break
+			
+			# filter by cluster
+			candidateSegments = [segment for segment in segments if segment.cluster == nextCluster]
+			
+			# get segment w/ greedy strategy
+			# filter by relative variance of first derivative
+			lastMeanDer1 = lastSegment.meanDer1
+			candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.calc_der1_rel_var(lastMeanDer1)))
+			candidateSegments = candidateSegments[:int(propvarderiv*len(candidateSegments))]
+			#XXX lukes stuff
+			temp = 0.1
+			derivvars = [ numpy.exp(s.dTemp/temp) for s in candidateSegments]
+			derivvars = numpy.array(derivvars)
+			probs = derivvars/np.sum(derivvars)
+			choice = numpy.where(numpy.random.multinomial(len(candidateSegments),pvals=probs))[0][0]
+			newSegment = candidateSegments[choice]
+				
+			# shift everything so that it can be stitched
+			startDiff = newSegment.dataset[0] - lastSegment.forecast()
+			newSegment.dataset -= startDiff
+			lastSegment = newSegment
+
+			# see if we reached goal temperature
+			endPoints = [ i for (i,r) in enumerate(lastSegment.dataset) if abs(r-goal)< 0.1 ]
+			
+			if len(endPoints) != 0:
+				if comeBack:
+					iSignal += lastSegment.dataset.tolist()
+				else:
+					iSignal +=  lastSegment.dataset[:endPoints[0]+1].tolist()
+				break
+			else:
+				iSignal += lastSegment.dataset.tolist()
+				
+			finalValue = lastSegment.dataset[-1]
+			diff = abs(finalValue - goal)
+		
+		'''////////////////////////////////////////////		
+		/////////////////// comeBack /////////////////	
+		 the signal must go back to the real dataset
+		'''
+		if comeBack and len(iSignal)<len(dTesting):
+			atckI = len(iSignal) - 1
+			finalValue = lastSegment.dataset[-1]
+			goal = dTesting[atckI]
+			diff = abs(finalValue - goal)
+		
+			while diff > 0.1:
+
+				# we pick the next cluster probabilistically from condProbsTable
+				lastCluster = lastSegment.cluster
+				rand = random.uniform(0,1)
+				for (i, prob) in enumerate(condProbsTable[lastCluster]):
+					rand -= prob
+					if rand <= 0:
+						nextCluster = i
+						break
+				print "Cluster chosen is %d" % (i,)
+				# filter by cluster
+				candidateSegments = [segment for segment in segments if segment.cluster == nextCluster]
+				propvarderiv = 1.0
+				propdifftemp = 1.0
+				# get segment w/ greedy strategy
+				lastMeanDer1 = lastSegment.meanDer1
+				candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.calc_der1_rel_var(lastMeanDer1)))
+				candidateSegments = candidateSegments[:int(propvarderiv*len(candidateSegments))]
+				#XXX lukes stuff
+				temp = 0.1
+				derivvars = [ numpy.exp(s.dTemp/temp) for s in candidateSegments]
+				derivvars = numpy.array(derivvars)
+				probs = derivvars/np.sum(derivvars)
+				choice = numpy.where(numpy.random.multinomial(len(candidateSegments),pvals=probs))[0][0]
+				newSegment = candidateSegments[choice]
+				
+				# shift everything so that it can be stitched
+				startDiff = newSegment.dataset[0] - lastSegment.forecast()
+				newSegment.dataset -= startDiff
+				lastSegment = newSegment
+				
+				# we have to check every datapoint on its own
+				brkDummy = False
+				for d in lastSegment.dataset:
+					iSignal.append(d)
+					atckI += 1
+					if abs(d-dTesting[atckI]) < 0.1:
+						brkDummy = True
+						break
+					if len(iSignal) >= len(dTesting):
+						brkDummy = True
+						break
+				if brkDummy:
+					iSignal += dTesting[atckI+1:]
+					break		
+				
+				finalValue = lastSegment.dataset[-1]
+				goal = dTesting[atckI]
+				diff = abs(finalValue - goal)
+			
+		return (startSignal, iSignal)
+		
+		
+		
 		# cluster
 		# random
 		# shift
