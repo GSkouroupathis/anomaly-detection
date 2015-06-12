@@ -9,8 +9,8 @@ def getTrainingTesting(readings):
 	# get first datetime
 	firstDaTi = datetime.datetime.strptime(readings[0][1]+' '+readings[0][2], '%Y-%m-%d %H:%M:%S')
 
-	# add three day
-	dateAfter = firstDaTi + datetime.timedelta(3, 0)
+	# add two day
+	dateAfter = firstDaTi + datetime.timedelta(2, 0)
 
 	# find end of testing data
 	endTestI = 0

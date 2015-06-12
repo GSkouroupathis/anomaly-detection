@@ -70,6 +70,7 @@ def initTables():
 	dbCursor.execute('''
 	CREATE TABLE nodes_table (
 	node_id int,
+	available int,
 	PRIMARY KEY (node_id)
 	)
 	''')
@@ -161,8 +162,8 @@ def initTables():
 def insertNode(node_id):
 	global dbCursor
 	dbCursor.execute('''
-	INSERT INTO nodes_table (node_id)
-	VALUES (?)
+	INSERT INTO nodes_table (node_id, available)
+	VALUES (?, 0)
 	''', (node_id,))
 	dbConnection.commit()
 
@@ -173,6 +174,15 @@ def selectAllNodes():
 	''')
 	return dbCursor.fetchall()
 
+def setNodeAvail(node_id):
+	global dbCursor
+	dbCursor.execute('''
+	UPDATE nodes_table
+	SET available=1
+	WHERE node_id = ?
+	''', (node_id,))
+	dbConnection.commit()
+	
 ###############	###############	###############	
 #covariance_table
 ###############	###############	###############	

@@ -84,36 +84,39 @@ def prep():
 	dbOp.connectToDatabase("data/db")
 	nodes = map(lambda x: x[0], dbOp.selectAllNodes())
 	for node in nodes:
-		if node > 50: continue #faulty nodes / waste of time
-		print ">>", node
-		readings = dbOp.selectReadingsFromNode(node)
-		(dTr, dTe, rTr, rTe) = data.getTrainingTesting(readings)
-		if len(dTr) == 0: continue
-		mcMimicry = MCMimicry(dTr)
-		(w, segments, centroids, labels, condProbTable, K, score) = mcMimicry.prepare()
-		if w is None: continue
-		# insert cluster group
-		dbOp.insertClusterGroup(node, K, w)
-		# insert clusters
-		for (i, centroid) in enumerate(centroids):
-			dbOp.insertCluster(node, i, str(centroid))
-			print ">>>cluster", i
-		# insert conditional probabilities
-		for (i, bClusterList) in enumerate(condProbTable):
-			for (j, aClusterProb) in enumerate(bClusterList):
-				dbOp.insertConditionalProbability(node, i, j, aClusterProb)
-				print ">>>", i,j
-		# insert reading segments
-		uouo=len(segments)
-		for (i, segment) in enumerate(segments):
-			print ">>>segment", i+1,"/",uouo
-			start_date = rTr[i*w][1]
-			start_time = rTr[i*w][2]
-			end_date = rTr[i*w + w -1][1]
-			end_time = rTr[i*w + w -1][2]
-			print start_time, '-', end_time
-			cluster_id = int(labels[i])
-			dbOp.insertReadingSegment(node, start_date, start_time, end_date, end_time, node, cluster_id)
+		try:
+			print ">>", node
+			readings = dbOp.selectReadingsFromNode(node)
+			(dTr, dTe, rTr, rTe) = data.getTrainingTesting(readings)
+			if len(dTr) == 0: raise Exception('No training data')
+			mcMimicry = MCMimicry(dTr)
+			(w, segments, centroids, labels, condProbTable, K, score) = mcMimicry.prepare()
+			if w is None: continue
+			# insert cluster group
+			dbOp.insertClusterGroup(node, K, w)
+			# insert clusters
+			for (i, centroid) in enumerate(centroids):
+				dbOp.insertCluster(node, i, str(centroid))
+				print ">>>cluster", i
+			# insert conditional probabilities
+			for (i, bClusterList) in enumerate(condProbTable):
+				for (j, aClusterProb) in enumerate(bClusterList):
+					dbOp.insertConditionalProbability(node, i, j, aClusterProb)
+					print ">>>", i,j
+			# insert reading segments
+			uouo=len(segments)
+			for (i, segment) in enumerate(segments):
+				print ">>>segment", i+1,"/",uouo
+				start_date = rTr[i*w][1]
+				start_time = rTr[i*w][2]
+				end_date = rTr[i*w + w -1][1]
+				end_time = rTr[i*w + w -1][2]
+				print start_time, '-', end_time
+				cluster_id = int(labels[i])
+				dbOp.insertReadingSegment(node, start_date, start_time, end_date, end_time, node, cluster_id)
+			dbOp.setNodeAvail(node)
+		except:
+			print "Node", node, "failed to initialize"
 	dbOp.closeConnectionToDatabase()
 
 #prep()
@@ -171,21 +174,26 @@ def launch(atck, attackedSensor, usedSensors, goal, tdelay):
 	elif atck == 5:
 		(startSignal, iSignal) = mcMimicry.super_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
 	elif atck == 6:
-		(startSignal, iSignal) = mcMimicry.superer_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=True)
+		(startSignal, iSignal) = mcMimicry.superer_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, propvarderiv=0.65, propdifftemp=0.35, comeBack=0)
 	elif atck == 7:
-		(startSignal, iSignal) = mcMimicry.softmax_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=True)
+		(startSignal, iSignal) = mcMimicry.softmax_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, propvarderiv=0.75, temp=0.03, comeBack=1)
 	elif atck == 8:
+		(startSignal, iSignal) = mcMimicry.poutsa_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=True)
+	elif atck == 9:
 		(startSignal, iSignal) = mcMimicry.cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable)
+	elif atck == 10:
+		(startSignal, iSignal) = mcMimicry.ditto_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=True)
+	elif atck == 11:
+		(startSignal, iSignal) = mcMimicry.smart3_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, propMean=0.35, propWDer1=0.2, propDTemp=0.7, comeBack=True)
 	else:
 		return None
 	return (startSignal, iSignal, dTraining, dTesting)
 ####
-attackedSensor = 26
+attackedSensor = 37
 usedSensors = (attackedSensor,)
 goal = 30
 tdelay = 1
-(startSignal, iSignal, dTraining, dTesting) = launch(7, attackedSensor, usedSensors, goal, tdelay)
-
+(startSignal, iSignal, dTraining, dTesting) = launch(6, attackedSensor, usedSensors, goal, tdelay)
 
 EKFd = EKFDetector(iSignal, dTraining)
 CUSUMd = CUSUMDetector(iSignal, h=0.4, w=10, EKFd=EKFd)
@@ -193,7 +201,7 @@ res  = CUSUMd.detect()[0]
 
 # Terence mimicry
 terMimicry = TerMimicry()
-terSignal = terMimicry.attack(dTraining, 28, 0, [dTraining])[0]
+terSignal = terMimicry.attack(dTraining, 30, 0, [dTraining])[0]
 EKFd = EKFDetector(terSignal, dTraining)
 CUSUMd = CUSUMDetector(terSignal, h=0.4, w=10, EKFd=EKFd)
 terRes  = CUSUMd.detect()[0]
@@ -247,22 +255,24 @@ for i in trickRes:
 print "trick Detection rate:", top*1.0/len(trickRes)
 
 thrL=[thr] * len(dTesting)
+thrLNeg=[-thr] * len(dTesting)
 # Plot stuff
 import matplotlib.pyplot as plt
 plt.subplot(2,1,1)
-plt.plot(dTesting, linewidth=1, linestyle="-", c="green", solid_capstyle="butt", label="Temperature")
-plt.plot(iSignal, linewidth=1, linestyle="-", c="red", solid_capstyle="butt", label="My attack")
+plt.plot(dTesting, linewidth=2, linestyle="--",  c="green", solid_capstyle="butt")
+plt.plot(iSignal, linewidth=1, linestyle="-", c="red", solid_capstyle="butt")
 ##plt.plot(trick, linewidth=2, linestyle="-", c="red", solid_capstyle="butt", label="linear attack")
-#plt.plot(terSignal, linewidth=1, linestyle="-", c="blue", solid_capstyle="butt", label="Terence attack")
-#plt.legend(loc='lower right')
+plt.plot(terSignal, linewidth=2, linestyle="-.", c="blue", solid_capstyle="butt")
 plt.ylabel('Temperature')
 
 plt.subplot(2,1,2)
-plt.plot(thrL, linewidth=2, linestyle="--", c="black", solid_capstyle="butt")
-plt.plot(res3, linewidth=2, linestyle="--", c="green", solid_capstyle="butt")
-plt.plot(res, linewidth=1, linestyle="-", c="red", solid_capstyle="butt")
+plt.plot(thrL, linewidth=2, linestyle="--", c="black", solid_capstyle="butt", label="Threshold")
+plt.plot(thrLNeg, linewidth=2, linestyle="--", c="black", solid_capstyle="butt")
+plt.plot(res3, linewidth=2, linestyle="--", c="green", solid_capstyle="butt", label="Temperature")
+plt.plot(res, linewidth=1, linestyle="-", c="red", solid_capstyle="butt", label="Attack")
 ##plt.plot(trickRes, linewidth=1, linestyle="-", c="red", solid_capstyle="butt")
-#plt.plot(terRes, linewidth=1, linestyle="-", c="blue", solid_capstyle="butt")
-plt.ylabel('SN Values')
+plt.plot(terRes, linewidth=2, linestyle="-.", c="blue", solid_capstyle="butt", label="Past Attack")
+plt.legend(loc='upper right')
+plt.ylabel('$S_N$ Values')
 plt.xlabel('Time')
 plt.show()
