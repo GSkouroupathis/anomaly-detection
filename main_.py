@@ -258,14 +258,17 @@ thrL=[thr] * len(dTesting)
 thrLNeg=[-thr] * len(dTesting)
 # Plot stuff
 import matplotlib.pyplot as plt
-plt.subplot(2,1,1)
-plt.plot(dTesting, linewidth=2, linestyle="--",  c="green", solid_capstyle="butt", label="Temperature")
-plt.plot(iSignal, linewidth=1, linestyle="-", c="red", solid_capstyle="butt", label="Attack")
+#plt.subplot(2,1,1)
+plt.plot([30]*len(iSignal), linewidth=2, linestyle="--", c="red", solid_capstyle="butt")
+plt.plot(iSignal, linewidth=2, linestyle="-", c="red", solid_capstyle="butt", label="Attack")
+plt.plot(dTesting, linewidth=3, linestyle="--",  c="green", solid_capstyle="butt", label="Temperature")
 #plt.plot(trick, linewidth=2, linestyle="-", c="red", solid_capstyle="butt", label="Linear Attack")
 #plt.plot(terSignal, linewidth=2, linestyle="-.", c="blue", solid_capstyle="butt")
 #plt.legend(loc='upper right')
 plt.ylabel('Temperature')
-
+plt.xlabel('Time')
+plt.legend(loc='upper right')
+'''
 plt.subplot(2,1,2)
 plt.plot(thrL, linewidth=2, linestyle="--", c="black", solid_capstyle="butt", label="Threshold")
 plt.plot(thrLNeg, linewidth=2, linestyle="--", c="black", solid_capstyle="butt")
@@ -276,4 +279,5 @@ plt.plot(res, linewidth=1, linestyle="-", c="red", solid_capstyle="butt", label=
 plt.legend(loc='upper right')
 plt.ylabel('$S_N$ Values')
 plt.xlabel('Time')
+'''
 plt.show()
