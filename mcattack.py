@@ -508,7 +508,7 @@ class MCMimicry(Attack):
 	####
 	#####
 	####
-	def superer_cluster_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, propvarderiv, propdifftemp, comeBack=False):
+	def rgv_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, propvarderiv, propdifftemp, comeBack=False):
 
 		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
 		
@@ -678,7 +678,7 @@ class MCMimicry(Attack):
 			lastMeanDer1 = lastSegment.meanDer1
 			candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.calc_der1_rel_var(lastMeanDer1)))
 			candidateSegments = candidateSegments[:int(propvarderiv*len(candidateSegments))]
-			#XXX lukes stuff
+
 			if finalValue < goal:
 				derivvars = [ numpy.exp( s.dTemp/temp ) for s in candidateSegments]
 			else:
@@ -700,7 +700,6 @@ class MCMimicry(Attack):
 			if len(endPoints) != 0:
 				if comeBack:
 					iSignal += lastSegment.dataset.tolist()
-					print 'DONE'
 				else:
 					iSignal +=  lastSegment.dataset[:endPoints[0]+1].tolist()
 				break
@@ -739,7 +738,7 @@ class MCMimicry(Attack):
 				lastMeanDer1 = lastSegment.meanDer1
 				candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.calc_der1_rel_var(lastMeanDer1)))
 				candidateSegments = candidateSegments[:int(propvarderiv*len(candidateSegments))]
-				#XXX lukes stuff
+
 				if finalValue < goal:
 					derivvars = [ numpy.exp( s.dTemp/temp ) for s in candidateSegments]
 				else:
@@ -777,8 +776,8 @@ class MCMimicry(Attack):
 		
 		
 		
-	# poutsa attack
-	def poutsa_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=False):
+	#  attack
+	def not_working_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=False):
 		propvarderiv = 0.7
 		propdifftemp = 0.07
 		
@@ -992,7 +991,7 @@ class MCMimicry(Attack):
 	####
 	#####
 	####
-	def smart3_cluster_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, propMean, propWDer1, propDTemp, comeBack=False):
+	def rwgm_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, propMean, propWDer1, propDTemp, comeBack=False):
 
 		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
 		
@@ -1005,10 +1004,7 @@ class MCMimicry(Attack):
 		lastSegment = startSegment
 		finalValue = lastSegment.dataset[-1]
 		diff = abs(finalValue - goal)
-		propMean = 0.35
-		propWDer1 = 0.2
-		propDTemp = 0.7
-
+	
 		while diff > 0.1 and len(iSignal)<len(dTesting):
 	
 			# we pick the next cluster probabilistically from condProbsTable
@@ -1122,3 +1118,19 @@ class MCMimicry(Attack):
 				diff = abs(finalValue - goal)
 			
 		return (startSignal, iSignal)
+		
+		
+		
+# uniform attack
+	def uniform_attack(self, goal, dTesting):
+		iSignal = [dTesting[-1]]
+		
+		while iSignal[-1] < goal:
+			iSignal.append(iSignal[-1]+0.015)
+		
+		return ([], iSignal)
+		
+		
+		
+		
+		
