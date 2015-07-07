@@ -1,5 +1,6 @@
 import numpy as np
 
+# Segment Class
 class Segment(object):
 	
 	# Class constructor

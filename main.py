@@ -29,7 +29,7 @@ attackedSensor = int(args.s)
 usedSensors = (attackedSensor,)
 dbOp.connectToDatabase("data/db") ##
 	
-# readings & info & also segments
+# readings & info & segments
 noOfDimensions = dbOp.getNoOfDimensions(rootNodeID = attackedSensor)
 nodesSegmentsDic = {}
 	
@@ -86,7 +86,7 @@ tdelay = int(args.d)
 if args.a == 'rgv':
 	(startSignal, iSignal) = mcMimicry.rgv_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, propvarderiv=0.65, propdifftemp=0.35, comeBack=comeBack)
 elif args.a == 'rwgm':
-	(startSignal, iSignal) = mcMimicry.rwgm_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, propMean=0.35, propWDer1=0.2, propDTemp=0.68, comeBack=comeBack)
+	(startSignal, iSignal) = mcMimicry.rwgm_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, propMean=0.2, propWDer1=0.12, propDTemp=0.65, comeBack=comeBack)
 elif args.a == 'softmax':
 	(startSignal, iSignal) = mcMimicry.softmax_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, propvarderiv=0.75, temp=0.03, comeBack=comeBack)
 elif args.a == 'uniform':
@@ -131,9 +131,11 @@ if args.p != 'n':
 			top += 1
 	print "Past Detection Rate:", top*1.0/len(terRes)
 
+# Plot stuff
+
 thrL=[thr] * len(dTesting)
 thrLNeg=[-thr] * len(dTesting)
-# Plot stuff
+
 import matplotlib.pyplot as plt
 plt.subplot(2,1,1)
 plt.plot(dTesting, linewidth=3, linestyle="--",  c="green", solid_capstyle="butt", label="Temperature")

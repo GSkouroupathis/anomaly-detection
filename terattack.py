@@ -4,6 +4,8 @@ import numpy as np
 from ekfdetector import *
 from cusumdetector import *
 
+# Terence Attack class
+# I don't understand half of this
 class TerMimicry(Attack):
 	def __init__(self):
 		# sets the allowed limit temperature for sin wrapper to be called

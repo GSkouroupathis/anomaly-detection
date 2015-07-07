@@ -1,5 +1,6 @@
 import datetime
 
+# Splits data into testing and training set
 # Testing set: first day
 # Training set: rest of them
 def getTrainingTesting(readings):

@@ -1,6 +1,7 @@
 from detector import *
 import numpy
 
+# EKF Detector Class
 class EKFDetector(Detector):
 	# Constructor
 	def __init__(self, dataset, datasetForR, Q=None, delta=None):

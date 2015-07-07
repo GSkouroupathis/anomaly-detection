@@ -1,15 +1,19 @@
+# Readings Filter Class
 class ReadingsFilter(object):
 	
+	# Constructor
 	def __init__(self, readings=None, threshold=None):
 		self.readings = readings
 		self.threshold = threshold
 	
 	def set_readings(self, readings):
 		self.readings = readings
-		
+	
+	# Sets filtering threshold
 	def set_threshold(self, threshold):
 		self.threshold = threshold
 		
+	# Filters Readings
 	def filter_readings(self):
 		filteredReadings = []
 		dataset = map(lambda x: x[3], self.readings)
@@ -23,7 +27,6 @@ class ReadingsFilter(object):
 			filteredReadings.append(self.readings[0])
 			if self.readings[0][3] < 10:
 				print self.readings[i-1]
-				dfdf=raw_input()
 		else:
 			print ' ** Reading 0 dropped due to high variance'
 
@@ -43,15 +46,8 @@ class ReadingsFilter(object):
 					print self.readings[i-1]
 					print filteredReadings[-1]
 					print thisVal
-					dfdf=raw_input('.')
 			else:
 				pass
-				'''
-				if i > 40000 and self.wat==3:
-					print ' ** Reading', i-1, 'dropped due to high variance'
-					print prevVal, thisVal, nextVal
-					print self.readings[i-1]
-					'''
 			prevVal = thisVal
 			thisVal = nextVal
 
@@ -63,7 +59,6 @@ class ReadingsFilter(object):
 			filteredReadings.append(self.readings[li])
 			if self.readings[li][3] < 10:
 				print self.readings[i-1]
-				dfdf=raw_input('..')
 		else:
 			print ' ** Reading', li, 'dropped due to high variance'
 	

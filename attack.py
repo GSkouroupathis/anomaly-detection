@@ -1,3 +1,4 @@
+# Attack class
 class Attack(object):
 
 	def __init__(self, dataset=None):

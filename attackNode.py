@@ -1,3 +1,4 @@
+# Attack Node Class
 class AttackNode(object):
 
 	def __init__(self, tree, nodeID, segmentInfo):

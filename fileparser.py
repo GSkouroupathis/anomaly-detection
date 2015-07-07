@@ -1,3 +1,4 @@
+# Parses the reading file
 def parse_file(path, maxTemp):
 	with open(path, 'r') as input_file:
 		fileLines = input_file.readlines()

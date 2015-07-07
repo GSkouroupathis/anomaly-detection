@@ -1,6 +1,7 @@
 from attackNode import AttackNode
 import random
 
+# Attack Tree Class
 class AttackTree(object):
 
 	def __init__(self, nodeID, startSignal, threshold, targetTemp, condProbTable):
@@ -13,8 +14,9 @@ class AttackTree(object):
 	def set_start_node(self, atckNode):
 		self.startNode = atckNode
 	
+	# Attacks nodeID
+	# sensorsSegmentsReadingsDic -> {sensorID:[segments]}
 	def attack(self, nodeID, sensorsSegmentsReadingsDic):
-		# attack signals
 		atckPaths = []
 		nodesLeft = [AttackNode(self, nodeID, segmentInfo) for segmentInfo in sensorsSegmentsReadingsDic[nodeID]]
 		nodesToIter = [self.startNode]
@@ -33,17 +35,8 @@ class AttackTree(object):
 					
 				#find segs in next cluster & stitchable
 				nodeCluster = node.segmentInfo[5]
-				# choose next cluster w/ probability
-				'''ran = random.randint(0,1)
-				nextCluster = nodeCluster #fix
-				for (i, prob) in enumerate(self.condProbTable[nodeCluster]):
-					ran -= prob
-					if ran <= 0:
-						nextCluster = i
-						break'''
-				#nextCluster = self.condProbTable[nodeCluster].index(max(self.condProbTable[nodeCluster]))
+
 				childrenSegsIn = [i for (i,n) in enumerate(nodesLeft) if abs(dataset[-1]-n.segmentInfo[6][0][-1])<self.threshold]
-				#childrenSegsIn = [i for (i,n) in enumerate(nodesLeft) if n.segmentInfo[5] == nextCluster and abs(dataset[-1]-n.segmentInfo[6][0][-1])<self.threshold]
 				
 				# set node's children
 				node.set_children([nodesLeft[i].set_signal_until(node.signalUntil + dataset) for i in childrenSegsIn])
@@ -57,6 +50,7 @@ class AttackTree(object):
 			nodesToIter = [nodesLeft[i] for i in newLevelNodesIn]
 			nodesLeft = list(set(nodesLeft) - set(nodesToIter))
 		return atckPaths
+		
 	#Class representation
 	def __repr__(self):
 		return "I am a tree for node " + str(self.nodeID)

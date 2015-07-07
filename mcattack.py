@@ -5,12 +5,13 @@ from attackNode import AttackNode
 import dbOp, math, numpy, random, datetime
 from scipy.cluster.vq import kmeans2
 
+# Markov Chain attack class
 class MCMimicry(Attack):
+
 	# Constructor
 	def __init__(self, dataset=None):
 		self.dataset = dataset
 				
-	# 1 ##########################################################################
 	# Chooses the appropriate window size w
 	def prepare(self, dataset=None):
 		if not dataset: dataset = self.dataset
@@ -20,10 +21,10 @@ class MCMimicry(Attack):
 		for w in [7, 8, 9, 10, 12, 15, 20, 25, 30]:
 			segment_list = numpy.array(self.segment_signal(dataset, w, 0))
 			if len(segment_list) == 0: continue
-			#norm_segments = map(lambda x: x-numpy.mean(x), segment_list)
+			# cluster segments
 			(centroids, labels) = self.cluster(segment_list)
-			# the sum of segments in each cluster
 			if labels is None: continue
+			# the sum of segments in each cluster
 			clusterCount = numpy.bincount(labels)
 			condProbTable = self.create_cond_prob_table(centroids, labels, clusterCount)
 			tableScore = self.eval_cond_prob_table(condProbTable, clusterCount)
@@ -38,7 +39,6 @@ class MCMimicry(Attack):
 			
 		return (bestW, bestSegments, bestCentroids, bestLabels, bestCondProbTable, K, bestScore)
 
-	# 2 ##########################################################################
 	# Divides signal into segments
 	# a: signal
 	# w: window size
@@ -96,7 +96,6 @@ class MCMimicry(Attack):
 		score = self.w_m_negentropy(negentropies, clusterCount)
 		return score
 		
-	# 3 ##########################################################################
 	# Performs K-means
 	# K: number of clusters
 	def k_means(self, segments, K):
@@ -117,7 +116,6 @@ class MCMimicry(Attack):
 	def find_knee(self, prevAvDist, avDist):
 		return avDist - prevAvDist > -0.3
 	
-	# 3 ##########################################################################
 	# Applies Dirichlet distribution to create Conditional Probabilities Table
 	def dirichlet(self, countTable, clusterCount, K):
 		for (prevCluster, row) in enumerate(countTable):
@@ -125,9 +123,8 @@ class MCMimicry(Attack):
 				row[thisCluster] = (thisClusterCount + 1)*1.0 / (clusterCount[prevCluster] + K)
 		return countTable
 
-	# 3 ##########################################################################	# Computes entropy of distribution
+	# Computes entropy of distribution
 	def entropy(self, distribution):
-
 		return -sum([p*math.log(p,10) for p in distribution])
 		
 	# Computes negentropy of distribution against uniform distribution
@@ -146,7 +143,7 @@ class MCMimicry(Attack):
 ################################################################################
 ################################################################################
 
-
+	# Creates initial signal before attack starts
 	def prepare_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic):
 		
 		# find actual time of attack start
@@ -169,16 +166,15 @@ class MCMimicry(Attack):
 			
 		return (startSignal, startSegment)
 
-	# 1 ##########################################################################	
-	# Tree Attacks sensor_id until goal
+	# Tree Attack
+	# Attacks sensor_id until goal
 	def tree_attack(self, sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable):
 		if atckDelay<100000:atckDelay+=100000
 		(startSignal, startSegment, sensorsSegmentsReadingsDic) = self.prepare_attack(sensorID, goal, atckDelay, sensorsSegmentsReadingsDic, condProbTable)
-		
 		iSignal = self.tree_attack_(sensorID, startSignal, startSegment, goal, sensorsSegmentsReadingsDic, condProbTable)
 		return (startSignal, iSignal)
-		
-	# 2 ##########################################################################	
+	
+	# Helper function	
 	def tree_attack_(self, sensorID, startSignal, startSegment, goal, sensorsSegmentsReadingsDic, condProbTable):
 		# first build attack tree & root node
 		atckTree = AttackTree(sensorID, startSignal, 0.2, goal, condProbTable)
@@ -188,12 +184,7 @@ class MCMimicry(Attack):
 		# launch the attack
 		return atckTree.attack(sensorID, sensorsSegmentsReadingsDic)
 		
-		
-		
-		
-		
-		
-	###
+	# Greedy Attack
 	def greedy_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable):
 		
 		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
@@ -209,7 +200,6 @@ class MCMimicry(Attack):
 		diff = abs(finalValue - goal)
 		
 		while diff > 0.1:
-
 			# filter by goal
 			candidateSegments = [segment for segment in segments if abs(segment.dataset[-1] - goal) < diff]
 		
@@ -235,14 +225,7 @@ class MCMimicry(Attack):
 			
 		return (startSignal, iSignal)
 			
-			
-			
-			
-	######
-	#####
-	####
-	###
-	##		
+	# Random Cluster Attack
 	def random_cluster_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable):
 
 		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
@@ -290,15 +273,7 @@ class MCMimicry(Attack):
 			
 		return (startSignal, iSignal)
 		
-		
-		
-		
-		
-		
-	#
-	##
-	###
-	####		
+	# Greedy Smooth Cluster Attack
 	def greedy_smooth_cluster_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable):
 
 		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
@@ -353,16 +328,11 @@ class MCMimicry(Attack):
 				iSignal += lastSegment.dataset.tolist()
 				
 			finalValue = lastSegment.dataset[-1]
-
 			diff = abs(finalValue - goal)
-			#print diff
-			
+
 		return (startSignal, iSignal)
 			
-	#
-	##
-	###
-	####		
+	# First Cluster Attack
 	def first_cluster_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable):
 
 		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
@@ -395,12 +365,10 @@ class MCMimicry(Attack):
 			# get segment w/ greedy strategy
 			if finalValue < goal:
 				candidateSegments = filter(lambda s:s.dTemp>0, candidateSegments)
-				#candidateSegments = sorted(candidateSegments, key=lambda s: s.dTemp)
 				newSegment = candidateSegments[0]
 
 			else:
 				candidateSegments = filter(lambda s:s.dTemp<0, candidateSegments)
-				#candidateSegments = sorted(candidateSegments, key=lambda s: s.dTemp)
 				newSegment = candidateSegments[0]
 
 			# shift everything so that it can be stitched
@@ -420,14 +388,10 @@ class MCMimicry(Attack):
 			finalValue = lastSegment.dataset[-1]
 
 			diff = abs(finalValue - goal)
-			#print diff
-			
+
 		return (startSignal, iSignal)
 		
-	###
-	####
-	#####
-	####
+	# Super Cluster Attack
 	def super_cluster_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable):
 
 		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
@@ -501,13 +465,7 @@ class MCMimicry(Attack):
 			
 		return (startSignal, iSignal)
 		
-		
-		
-		
-	###
-	####
-	#####
-	####
+	# Relative Gradient Variance Attack
 	def rgv_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, propvarderiv, propdifftemp, comeBack=False):
 
 		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
@@ -634,16 +592,7 @@ class MCMimicry(Attack):
 			
 		return (startSignal, iSignal)
 		
-		
-		
-		
-		
-		
-		
-		
-		
-		
-	# softmax cluster attack
+	# Softmax Cluster Attack
 	def softmax_cluster_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, propvarderiv, temp, comeBack=False):
 		
 		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
@@ -679,6 +628,7 @@ class MCMimicry(Attack):
 			candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.calc_der1_rel_var(lastMeanDer1)))
 			candidateSegments = candidateSegments[:int(propvarderiv*len(candidateSegments))]
 
+			# perform softmax here
 			if finalValue < goal:
 				derivvars = [ numpy.exp( s.dTemp/temp ) for s in candidateSegments]
 			else:
@@ -774,9 +724,139 @@ class MCMimicry(Attack):
 			
 		return (startSignal, iSignal)
 		
+	# Relative Wrighted Gradient Mean Attack
+	def rwgm_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, propMean, propWDer1, propDTemp, comeBack=False):
+
+		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
 		
+		# merge all segments
+		segments = []
+		for nodeID in nodesSegmentsDic.keys():
+			segments += nodesSegmentsDic[nodeID]
+			
+		iSignal = startSignal[:]
+		lastSegment = startSegment
+		finalValue = lastSegment.dataset[-1]
+		diff = abs(finalValue - goal)
+	
+		while diff > 0.1 and len(iSignal)<len(dTesting):
+	
+			# we pick the next cluster probabilistically from condProbsTable
+			lastCluster = lastSegment.cluster
+			rand = random.uniform(0,1)
+			for (i, prob) in enumerate(condProbsTable[lastCluster]):
+				rand -= prob
+				if rand <= 0:
+					nextCluster = i
+					break
+
+			candidateSegments = segments # <-- does not filter by cluster
+
+			# get segment w/ greedy strategy
+			if finalValue < goal:
+				candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.dMean-lastSegment.dMean), reverse=False)[:int(propMean*len(candidateSegments))+1]
+				candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.startWMeanDer1-lastSegment.endWMeanDer1), reverse=False)[:int(propWDer1*len(candidateSegments))+1]
+				candidateSegments = sorted(candidateSegments, key=lambda s: s.dTemp, reverse=True)[:int(propDTemp*len(candidateSegments))+1]
+				newSegment = random.choice(candidateSegments)
+			else:
+				candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.dMean-lastSegment.dMean), reverse=False)[:int(propMean*len(candidateSegments))+1]
+				candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.startWMeanDer1-lastSegment.endWMeanDer1), reverse=False)[:int(propWDer1*len(candidateSegments))+1]
+				candidateSegments = sorted(candidateSegments, key=lambda s: s.dTemp, reverse=False)[:int(propDTemp*len(candidateSegments))+1]
+				newSegment = random.choice(candidateSegments)
+
+			
+			# shift everything so that it can be stitched
+			startDiff = newSegment.dataset[0] - lastSegment.forecast()
+			newSegment.upd_dataset(newSegment.dataset-startDiff)
+			lastSegment = newSegment
+
+			# see if we reached goal temperature
+			endPoints = [ i for (i,r) in enumerate(lastSegment.dataset) if abs(r-goal)< 0.1 ]
+			
+			if len(endPoints) != 0:
+				if comeBack:
+					iSignal += lastSegment.dataset.tolist()
+				else:
+					iSignal +=  lastSegment.dataset[:endPoints[0]+1].tolist()
+				break
+			else:
+				iSignal += lastSegment.dataset.tolist()
+				
+			finalValue = lastSegment.dataset[-1]
+			diff = abs(finalValue - goal)
 		
-	#  attack
+		'''////////////////////////////////////////////		
+		/////////////////// comeBack /////////////////	
+		 the signal must go back to the real dataset
+		'''
+		if comeBack and len(iSignal)<len(dTesting):
+			atckI = len(iSignal) - 1
+			finalValue = lastSegment.dataset[-1]
+			goal = dTesting[atckI]
+			diff = abs(finalValue - goal)
+		
+			while diff > 0.1:
+				
+				# we pick the next cluster probabilistically from condProbsTable
+				lastCluster = lastSegment.cluster
+				rand = random.uniform(0,1)
+				for (i, prob) in enumerate(condProbsTable[lastCluster]):
+					rand -= prob
+					if rand <= 0:
+						nextCluster = i
+						break
+
+				candidateSegments = segments #<-- does not filter by cluster
+
+				# get segment w/ greedy strategy
+				if finalValue < goal:
+					candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.dMean-lastSegment.dMean), reverse=False)[:int(propMean*len(candidateSegments))+1]
+					candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.startWMeanDer1-lastSegment.endWMeanDer1), reverse=False)[:int(propWDer1*len(candidateSegments))+1]
+					candidateSegments = sorted(candidateSegments, key=lambda s: s.dTemp, reverse=True)[:int(propDTemp*len(candidateSegments))+1]
+					newSegment = random.choice(candidateSegments)
+				else:
+					candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.dMean-lastSegment.dMean), reverse=False)[:int(propMean*len(candidateSegments))+1]
+					candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.startWMeanDer1-lastSegment.endWMeanDer1), reverse=False)[:int(propWDer1*len(candidateSegments))+1]
+					candidateSegments = sorted(candidateSegments, key=lambda s: s.dTemp, reverse=False)[:int(propDTemp*len(candidateSegments))+1]
+					newSegment = random.choice(candidateSegments)
+
+			
+				# shift everything so that it can be stitched
+				startDiff = newSegment.dataset[0] - lastSegment.forecast()
+				newSegment.upd_dataset(newSegment.dataset-startDiff)
+				lastSegment = newSegment
+				
+				# we have to check every datapoint on its own
+				brkDummy = False
+				for d in lastSegment.dataset:
+					iSignal.append(d)
+					atckI += 1
+					if abs(d-dTesting[atckI]) < 0.1:
+						brkDummy = True
+						break
+					if len(iSignal) >= len(dTesting):
+						brkDummy = True
+						break
+				if brkDummy:
+					iSignal += dTesting[atckI+1:]
+					break		
+				
+				finalValue = lastSegment.dataset[-1]
+				goal = dTesting[atckI]
+				diff = abs(finalValue - goal)
+			
+		return (startSignal, iSignal)
+		
+	# Uniform Increase Attack
+	def uniform_attack(self, goal, dTesting):
+		iSignal = [dTesting[-1]]
+		
+		while iSignal[-1] < goal:
+			iSignal.append(iSignal[-1]+0.015)
+		
+		return ([], iSignal)		
+		
+	# I don't even know
 	def not_working_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=False):
 		propvarderiv = 0.7
 		propdifftemp = 0.07
@@ -919,9 +999,8 @@ class MCMimicry(Attack):
 			
 		return (startSignal, iSignal)	
 		
-		# cluster
-		# random
-		# shift
+	# Cluster Attack
+	# Chooses random from next cluster
 	def cluster_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable):
 
 		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
@@ -971,164 +1050,17 @@ class MCMimicry(Attack):
 			finalValue = lastSegment.dataset[-1]
 
 			diff = abs(finalValue - goal)
-			#print diff
 			
 		return (startSignal, iSignal)
 	
 	
-	# ditto attack
+	# Ditto Attack
+	# Repeats original signal
 	def ditto_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, comeBack=False):
 		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
 		return (startSignal, startSignal + dTesting[len(startSignal)-1:])
 		
-		
-		
-		
-		
-		
-		
-	###
-	####
-	#####
-	####
-	def rwgm_attack(self, sensorID, goal, atckDelay, nodesSegmentsDic, condProbsTable, dTesting, propMean, propWDer1, propDTemp, comeBack=False):
 
-		(startSignal, startSegment) = self.prepare_attack(sensorID, goal, atckDelay, nodesSegmentsDic)
-		
-		# merge all segments
-		segments = []
-		for nodeID in nodesSegmentsDic.keys():
-			segments += nodesSegmentsDic[nodeID]
-			
-		iSignal = startSignal[:]
-		lastSegment = startSegment
-		finalValue = lastSegment.dataset[-1]
-		diff = abs(finalValue - goal)
-	
-		while diff > 0.1 and len(iSignal)<len(dTesting):
-	
-			# we pick the next cluster probabilistically from condProbsTable
-			lastCluster = lastSegment.cluster
-			rand = random.uniform(0,1)
-			for (i, prob) in enumerate(condProbsTable[lastCluster]):
-				rand -= prob
-				if rand <= 0:
-					nextCluster = i
-					break
-
-			# filter by cluster
-			#candidateSegments = [segment for segment in segments if segment.cluster == nextCluster or segment.cluster == lastCluster]
-			candidateSegments = segments
-			# get segment w/ greedy strategy
-			if finalValue < goal:
-				# filter by
-				candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.dMean-lastSegment.dMean), reverse=False)[:int(propMean*len(candidateSegments))+1]
-				candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.startWMeanDer1-lastSegment.endWMeanDer1), reverse=False)[:int(propWDer1*len(candidateSegments))+1]
-				candidateSegments = sorted(candidateSegments, key=lambda s: s.dTemp, reverse=True)[:int(propDTemp*len(candidateSegments))+1]
-				newSegment = random.choice(candidateSegments)
-			else:
-				# filter by 
-				candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.dMean-lastSegment.dMean), reverse=False)[:int(propMean*len(candidateSegments))+1]
-				candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.startWMeanDer1-lastSegment.endWMeanDer1), reverse=False)[:int(propWDer1*len(candidateSegments))+1]
-				candidateSegments = sorted(candidateSegments, key=lambda s: s.dTemp, reverse=False)[:int(propDTemp*len(candidateSegments))+1]
-				newSegment = random.choice(candidateSegments)
-
-			
-			# shift everything so that it can be stitched
-			startDiff = newSegment.dataset[0] - lastSegment.forecast()
-			newSegment.upd_dataset(newSegment.dataset-startDiff)
-			lastSegment = newSegment
-
-			# see if we reached goal temperature
-			endPoints = [ i for (i,r) in enumerate(lastSegment.dataset) if abs(r-goal)< 0.1 ]
-			
-			if len(endPoints) != 0:
-				if comeBack:
-					iSignal += lastSegment.dataset.tolist()
-				else:
-					iSignal +=  lastSegment.dataset[:endPoints[0]+1].tolist()
-				break
-			else:
-				iSignal += lastSegment.dataset.tolist()
-				
-			finalValue = lastSegment.dataset[-1]
-			diff = abs(finalValue - goal)
-		
-		'''////////////////////////////////////////////		
-		/////////////////// comeBack /////////////////	
-		 the signal must go back to the real dataset
-		'''
-		if comeBack and len(iSignal)<len(dTesting):
-			atckI = len(iSignal) - 1
-			finalValue = lastSegment.dataset[-1]
-			goal = dTesting[atckI]
-			diff = abs(finalValue - goal)
-		
-			while diff > 0.1:
-				
-				# we pick the next cluster probabilistically from condProbsTable
-				lastCluster = lastSegment.cluster
-				rand = random.uniform(0,1)
-				for (i, prob) in enumerate(condProbsTable[lastCluster]):
-					rand -= prob
-					if rand <= 0:
-						nextCluster = i
-						break
-
-				# filter by cluster
-				#candidateSegments = [segment for segment in segments if segment.cluster == nextCluster or segment.cluster == lastCluster]
-				candidateSegments = segments			
-				# get segment w/ greedy strategy
-				if finalValue < goal:
-					# filter by
-					candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.dMean-lastSegment.dMean), reverse=False)[:int(propMean*len(candidateSegments))+1]
-					candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.startWMeanDer1-lastSegment.endWMeanDer1), reverse=False)[:int(propWDer1*len(candidateSegments))+1]
-					candidateSegments = sorted(candidateSegments, key=lambda s: s.dTemp, reverse=True)[:int(propDTemp*len(candidateSegments))+1]
-					newSegment = random.choice(candidateSegments)
-				else:
-					# filter by 
-					candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.dMean-lastSegment.dMean), reverse=False)[:int(propMean*len(candidateSegments))+1]
-					candidateSegments = sorted(candidateSegments, key=lambda s: abs(s.startWMeanDer1-lastSegment.endWMeanDer1), reverse=False)[:int(propWDer1*len(candidateSegments))+1]
-					candidateSegments = sorted(candidateSegments, key=lambda s: s.dTemp, reverse=False)[:int(propDTemp*len(candidateSegments))+1]
-					newSegment = random.choice(candidateSegments)
-
-			
-				# shift everything so that it can be stitched
-				startDiff = newSegment.dataset[0] - lastSegment.forecast()
-				newSegment.upd_dataset(newSegment.dataset-startDiff)
-				lastSegment = newSegment
-				
-				# we have to check every datapoint on its own
-				brkDummy = False
-				for d in lastSegment.dataset:
-					iSignal.append(d)
-					atckI += 1
-					if abs(d-dTesting[atckI]) < 0.1:
-						brkDummy = True
-						break
-					if len(iSignal) >= len(dTesting):
-						brkDummy = True
-						break
-				if brkDummy:
-					iSignal += dTesting[atckI+1:]
-					break		
-				
-				finalValue = lastSegment.dataset[-1]
-				goal = dTesting[atckI]
-				diff = abs(finalValue - goal)
-			
-		return (startSignal, iSignal)
-		
-		
-		
-# uniform attack
-	def uniform_attack(self, goal, dTesting):
-		iSignal = [dTesting[-1]]
-		
-		while iSignal[-1] < goal:
-			iSignal.append(iSignal[-1]+0.015)
-		
-		return ([], iSignal)
 		
 		
 		

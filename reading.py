@@ -1,3 +1,4 @@
+# Reading Class
 class Reading(object):
 	
 	#Class constructor

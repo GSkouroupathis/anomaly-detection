@@ -2,11 +2,13 @@ from detector import *
 from ekfdetector import *
 import math, testing
 
+# CUSUM Detector Class
 class CUSUMDetector(Detector):
+	
 	# Constructor
-	 # h: CUSUM threshold
-	 # w: CUSUM window size
-	 # EKFd: EKF Detector
+	# h: CUSUM threshold
+	# w: CUSUM window size
+	# EKFd: EKF Detector
 	def __init__(self, dataset, h, w, EKFd):
 		Detector.__init__(self, dataset)
 		self.h = h
@@ -66,7 +68,8 @@ class CUSUMDetector(Detector):
 			cusumVals[k] = s_N
 
 		return (cusumVals, s_ks, x_prioris, R, self.alert, self.h, self.w)
-			
+	
+	# Terence's implementation
 	def cusum(self):
 
 		z=self.dataset

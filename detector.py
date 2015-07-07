@@ -1,3 +1,4 @@
+# Detector Class
 class Detector(object):
 
 	def __init__(self, dataset=None):

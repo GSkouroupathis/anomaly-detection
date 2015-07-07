@@ -43,6 +43,7 @@ def init():
 	dbOp.insertAllReadings(allFilteredReadings)
 
 	# Calculate and insert Covariances
+	# not ran in this project
 	'''
 	nodes = map(lambda x: x[0], dbOp.selectAllNodes())
 	for (i, node1) in enumerate(nodes):
@@ -57,28 +58,7 @@ def init():
 	
 #init()
 
-
-
-## CUSUM detection ##
-'''
-EKFd = EKFDetector(readings)
-CUSUMd = CUSUMDetector(readings, h=0.4, w=10, EKFd=EKFd)
-res  = CUSUMd.detect()
-'''
-
-# Calculates correlations
-'''
-cor = []
-for (i,r) in readings:
-	wat = min(len(r),len(r3))
-	cor.append((i, numpy.cov(r3[:wat],r[:wat])[0][1]))
-cor = sorted(cor, key=lambda x: x[1], reverse=True)
-for i in cor:
-	print i
-'''
-
-# MC mimicry
-# Prepare Attack
+# Prepare MC Attack
 def prep():
 	#dummy = raw_input('This is gonna take forever (press any key to continue)')
 	dbOp.connectToDatabase("data/db")
@@ -188,13 +168,18 @@ def launch(atck, attackedSensor, usedSensors, goal, tdelay):
 	else:
 		return None
 	return (startSignal, iSignal, dTraining, dTesting)
+
+
 ####
+
+# Example attack
 attackedSensor = 37
 usedSensors = (attackedSensor,)
 goal = 30
 tdelay = 1
 (startSignal, iSignal, dTraining, dTesting) = launch(11, attackedSensor, usedSensors, goal, tdelay)
 
+# Detect anomalies in attack
 EKFd = EKFDetector(iSignal, dTraining)
 CUSUMd = CUSUMDetector(iSignal, h=0.4, w=10, EKFd=EKFd)
 res  = CUSUMd.detect()[0]
@@ -206,21 +191,12 @@ EKFd = EKFDetector(terSignal, dTraining)
 CUSUMd = CUSUMDetector(terSignal, h=0.4, w=10, EKFd=EKFd)
 terRes  = CUSUMd.detect()[0]
 
+# Detect anomalies in Terence attack
 EKFd = EKFDetector(dTesting, dTraining)
 CUSUMd = CUSUMDetector(dTesting, h=0.4, w=10, EKFd=EKFd)
 res3  = CUSUMd.detect()[0]
 
-
-#### Trick #
-trickI = 18.8
-trick=[]
-while trickI<30:
-	trick.append(trickI)
-	trickI += 0.015
-EKFd = EKFDetector(trick, dTraining)
-CUSUMd = CUSUMDetector(trick, h=0.4, w=10, EKFd=EKFd)
-trickRes  = CUSUMd.detect()[0]
-
+# Detect Original signal
 EKFd = EKFDetector(dTraining, dTraining)
 CUSUMd = CUSUMDetector(dTraining, h=0.4, w=10, EKFd=EKFd)
 baseRes  = CUSUMd.detect()[0]
@@ -228,56 +204,49 @@ baseRes  = CUSUMd.detect()[0]
 #threshold
 thr = 1.362
 
-top = 0
-for i in baseRes:
-	if i > thr or i < -thr:
-		top += 1
-print "base Detection rate:", top*1.0/len(baseRes)
+# Find detection rates
+# --
+
+# Original signal
 top = 0
 for i in res3:
 	if i > thr or i <-thr:
 		top += 1
-print "real Detection rate:", top*1.0/len(res3)
+print "Real Detection rate:", top*1.0/len(res3)
+
+# MC attack signal
 top = 0
 for i in res:
 	if i > thr or i <-thr:
 		top += 1
-print "my Detection rate:", top*1.0/len(res)
+print "MC attack Detection rate:", top*1.0/len(res)
+
+# Terence attack signal
 top = 0
 for i in terRes:
 	if i > thr or i <-thr:
 		top += 1
-print "ter Detection rate:", top*1.0/len(terRes)
-top = 0
-for i in trickRes:
-	if i > thr or i <-thr:
-		top += 1
-print "trick Detection rate:", top*1.0/len(trickRes)
+print "Terence Detection rate:", top*1.0/len(terRes)
 
+# Plot stuff
 thrL=[thr] * len(dTesting)
 thrLNeg=[-thr] * len(dTesting)
-# Plot stuff
+
 import matplotlib.pyplot as plt
-#plt.subplot(2,1,1)
-plt.plot([30]*len(iSignal), linewidth=2, linestyle="--", c="red", solid_capstyle="butt")
+plt.subplot(2,1,1)
 plt.plot(iSignal, linewidth=2, linestyle="-", c="red", solid_capstyle="butt", label="Attack")
 plt.plot(dTesting, linewidth=3, linestyle="--",  c="green", solid_capstyle="butt", label="Temperature")
-#plt.plot(trick, linewidth=2, linestyle="-", c="red", solid_capstyle="butt", label="Linear Attack")
-#plt.plot(terSignal, linewidth=2, linestyle="-.", c="blue", solid_capstyle="butt")
-#plt.legend(loc='upper right')
-plt.ylabel('Temperature')
+plt.plot(terSignal, linewidth=2, linestyle="-.", c="blue", solid_capstyle="butt")
 plt.xlabel('Time')
-plt.legend(loc='upper right')
-'''
+
 plt.subplot(2,1,2)
 plt.plot(thrL, linewidth=2, linestyle="--", c="black", solid_capstyle="butt", label="Threshold")
 plt.plot(thrLNeg, linewidth=2, linestyle="--", c="black", solid_capstyle="butt")
 plt.plot(res3, linewidth=2, linestyle="--", c="green", solid_capstyle="butt", label="Temperature")
 plt.plot(res, linewidth=1, linestyle="-", c="red", solid_capstyle="butt", label="Attack")
-#plt.plot(trickRes, linewidth=2, linestyle="-", c="red", solid_capstyle="butt", label="Linear Attack")
-#plt.plot(terRes, linewidth=2, linestyle="-.", c="blue", solid_capstyle="butt", label="Past Attack")
+plt.plot(terRes, linewidth=2, linestyle="-.", c="blue", solid_capstyle="butt", label="Past Attack")
 plt.legend(loc='upper right')
 plt.ylabel('$S_N$ Values')
 plt.xlabel('Time')
-'''
+
 plt.show()
