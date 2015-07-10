@@ -8,6 +8,211 @@ from mcattack import *
 import numpy as np
 import numpy.random
 
+def create_attack(attackedSensor, goal):
+	usedSensors = (attackedSensor,)
+
+	dbOp.connectToDatabase("data/db") ##
+	
+	# readings & info & also segments
+
+	noOfDimensions = dbOp.getNoOfDimensions(rootNodeID = attackedSensor)
+	nodesSegmentsDic = {}
+	
+	for nodeID in usedSensors:
+	
+		readingsInfo = dbOp.selectReadingsFromNode(nodeID)
+		(dTraining, dTesting, rTr, rTe) = data.getTrainingTesting(readingsInfo)
+		readings = [Reading(r[0],r[1],r[2],r[3]) for r in rTr]
+		
+		# get segments
+		segsInfo = dbOp.selectSegmentsFromNode(nodeID)
+		segments = [Segment(segInfo[0],segInfo[6],segInfo[1],segInfo[2],segInfo[3],segInfo[4]) for segInfo in segsInfo]
+		
+		for (i, segment) in enumerate(segments):
+			segReadings = readings[i*noOfDimensions:(i+1)*noOfDimensions]
+			segment.set_readings(segReadings)
+			
+		# set segments
+		nodesSegmentsDic[nodeID] = segments
+		
+	# conditional probabilities table
+	K = dbOp.selectClusterGroup(root_node_id=attackedSensor)[0][1]
+	condProbsTable = [[0]*K for i in range(K)]
+	condProbs = dbOp.selectCondProbs(root_node_id=attackedSensor)
+	for probArray in condProbs:
+		bCluster = probArray[1]
+		aCluster = probArray[2]
+		prob = probArray[3]
+		condProbsTable[bCluster][aCluster] = prob
+
+	dbOp.closeConnectionToDatabase() ##
+	
+	mcMimicry = MCMimicry()
+	return (mcMimicry, nodesSegmentsDic, condProbsTable, dTraining, dTesting)
+
+def g_3_8():
+	attackedSensor = 37
+	goal = 30
+	tdelay = 1
+	thr=1.362
+	(mcMimicry, nodesSegmentsDic, condProbsTable, dTraining, dTesting) = create_attack(attackedSensor, goal)
+	
+	varDerivTests = [0.25, 0.5, 0.75]
+	dTempTests = [0.2, 0.4, 0.6, 0.8]
+	noOfTests = 20
+	for varDeriv in varDerivTests:
+		print "________"
+		print "varDeriv:", varDeriv
+		print "--------"
+		allDete = []
+		allTime = []
+		for dTemp in dTempTests:
+			mnTime = 0
+			mnDete = 0
+			for dummy in range(noOfTests):
+				print 'dTemp:', dTemp, 'test no:', dummy+1
+				(startSignal, iSignal) = mcMimicry.rgv_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, propvarderiv=varDeriv, propdifftemp=dTemp, comeBack=0)
+
+				EKFd = EKFDetector(iSignal, dTraining)
+				CUSUMd = CUSUMDetector(iSignal, h=0.4, w=10, EKFd=EKFd)
+				res  = CUSUMd.detect()[0]
+
+				top = 0
+				for i in res:
+					if i > thr or i <-thr:
+						top += 1
+				dete = top*1.0/len(res)
+			
+				mnTime += len(iSignal)
+				mnDete += dete
+			mnTime /= (noOfTests*1.0)
+			mnDete /= (noOfTests*1.0)
+			allTime.append(mnTime)
+			allDete.append(mnDete)
+	
+		plt.subplot(2,1,1)
+		plt.plot([0]*int(map(lambda x: x*100, dTempTests)[-1]+1), linewidth=1, linestyle="-", c="black", solid_capstyle="butt")
+		plt.plot(map(lambda x: x*100, dTempTests), allDete, linewidth=1, linestyle="--", marker='o', markersize=10, c="red", solid_capstyle="butt", label=str(varDeriv))
+		plt.title('$relGradVarPerc$ = '+ str(int(varDeriv*100)) + '%')
+		plt.ylabel('Detection Rate')
+		#plt.xlabel('$deltaTempPerc$')
+	
+		plt.subplot(2,1,2)
+		plt.plot([0]*int(map(lambda x: x*100, dTempTests)[-1]+1), linewidth=1, linestyle="-", c="black", solid_capstyle="butt")
+		plt.plot(map(lambda x: x*100, dTempTests), allTime, linewidth=1, linestyle="--", marker='o', markersize=10, c="blue", solid_capstyle="butt", label=str(varDeriv))
+		plt.ylabel('Attack Time')
+		plt.xlabel('$deltaTempPerc$')
+		plt.show()
+	
+#g_3_8()
+
+def g_3_12():
+	attackedSensor = 37
+	goal = 30
+	tdelay = 1
+	thr=1.362
+	(mcMimicry, nodesSegmentsDic, condProbsTable, dTraining, dTesting) = create_attack(attackedSensor, goal)
+	
+	varDerivTests = [0.25, 0.5, 0.75]
+	tempTests = [0.01, 0.02, 0.03, 0.04]
+	noOfTests = 5
+	for varDeriv in varDerivTests:
+		print "________"
+		print "varDeriv:", varDeriv
+		print "--------"
+		allDete = []
+		allTime = []
+		for temp in tempTests:
+			mnTime = 0
+			mnDete = 0
+			for dummy in range(noOfTests):
+				print 'T:', temp, 'test no:', dummy+1
+				(startSignal, iSignal) = mcMimicry.softmax_cluster_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, propvarderiv=varDeriv, temp=temp, comeBack=0)
+
+				EKFd = EKFDetector(iSignal, dTraining)
+				CUSUMd = CUSUMDetector(iSignal, h=0.4, w=10, EKFd=EKFd)
+				res  = CUSUMd.detect()[0]
+
+				top = 0
+				for i in res:
+					if i > thr or i <-thr:
+						top += 1
+				dete = top*1.0/len(res)
+			
+				mnTime += len(iSignal)
+				mnDete += dete
+			mnTime /= (noOfTests*1.0)
+			mnDete /= (noOfTests*1.0)
+			allTime.append(mnTime)
+			allDete.append(mnDete)
+	
+		plt.subplot(2,1,1)
+		plt.plot(tempTests, allDete, linewidth=1, linestyle="--", marker='o', markersize=10, c="red", solid_capstyle="butt", label=str(varDeriv))
+		plt.title('$relGradVarPerc$ = '+ str(int(varDeriv*100)) + '%')
+		plt.ylabel('Detection Rate')
+	
+		plt.subplot(2,1,2)
+		plt.plot(tempTests, allTime, linewidth=1, linestyle="--", marker='o', markersize=10, c="blue", solid_capstyle="butt", label=str(varDeriv))
+		plt.ylabel('Attack Time')
+		plt.xlabel('$T$')
+		plt.show()
+
+#g_3_12()
+
+def g_3_16():
+	attackedSensor = 37
+	goal = 30
+	tdelay = 1
+	thr=1.362
+	(mcMimicry, nodesSegmentsDic, condProbsTable, dTraining, dTesting) = create_attack(attackedSensor, goal)
+	
+	meanTests = [0.25, 0.5, 0.75]
+	wDer1Tests = [0.2, 0.4, 0.6, 0.8]
+	dTempTests = [0.2, 0.4, 0.6, 0.8]
+	noOfTests = 8
+	for meann in meanTests:
+		print "________"
+		print "Mean:", meann
+		print "--------"
+		allDete = []
+		allTime = []
+		for wDer1 in wDer1Tests:
+			for dTemp in dTempTests:
+				mnDete = 0
+				mnTime = 0
+				for dummy in range(noOfTests):
+					print 'wDer1', wDer1, 'dTemp:', dTemp, 'test no:', dummy+1
+					(startSignal, iSignal) = mcMimicry.rwgm_attack(attackedSensor, goal, tdelay, nodesSegmentsDic, condProbsTable, dTesting, propMean=meann, propWDer1=wDer1, propDTemp=dTemp, comeBack=0)
+
+					EKFd = EKFDetector(iSignal, dTraining)
+					CUSUMd = CUSUMDetector(iSignal, h=0.4, w=10, EKFd=EKFd)
+					res  = CUSUMd.detect()[0]
+
+					top = 0
+					for i in res:
+						if i > thr or i <-thr:
+							top += 1
+					dete = top*1.0/len(res)
+			
+					mnDete += dete
+					mnTime += len(iSignal)
+				mnDete /= (noOfTests*1.0)
+				mnTime /= (noOfTests*1.0)
+				allDete.append(mnDete)
+				allTime.append(mnTime)
+		plt.scatter(map(lambda x:100*x,[0.2,0.2,0.2,0.2,0.4,0.4,0.4,0.4,0.6,0.6,0.6,0.6,0.8,0.8,0.8,0.8]), map(lambda x:100*x,[0.2, 0.4, 0.6, 0.8,0.2, 0.4, 0.6, 0.8,0.2, 0.4, 0.6, 0.8,0.2, 0.4, 0.6, 0.8]), s=map(lambda x: 30000*x+5, allDete), c="red", alpha=0.7)
+		plt.title('$meanPerc$ = '+ str(int(meann*100)) + '%')
+		plt.xlabel('$relWeightGradMeanPerc$')
+		plt.ylabel('$deltaTempPerc$')
+		plt.show()
+		plt.scatter(map(lambda x:100*x,[0.2,0.2,0.2,0.2,0.4,0.4,0.4,0.4,0.6,0.6,0.6,0.6,0.8,0.8,0.8,0.8]), map(lambda x:100*x,[0.2, 0.4, 0.6, 0.8,0.2, 0.4, 0.6, 0.8,0.2, 0.4, 0.6, 0.8,0.2, 0.4, 0.6, 0.8]), allTime, c="blue", alpha=0.7)
+		plt.title('$meanPerc$ = '+ str(int(meann*100)) + '%')
+		plt.xlabel('$relWeightGradMeanPerc$')
+		plt.ylabel('$deltaTempPerc$')
+		plt.show()
+
+#g_3_16()
+
 ################################################################################
 '''
 dbOp.connectToDatabase("data/db") ##
@@ -466,6 +671,7 @@ for meann in meanTests:
 	
 	
 ################################################################################
+'''
 attackedSensor = 37
 usedSensors = (attackedSensor,)
 tdelay = 1
@@ -560,4 +766,4 @@ plt.xlabel('Target Temperature')
 plt.legend(loc='upper left')
 plt.show()
 
-
+'''
